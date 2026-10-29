@@ -143,6 +143,3 @@ $('btn-hsp').addEventListener('click', () => run('/api/hsp', { text: text() }, '
 await loadConfig();
 await loadReceipts();
 
-// ?autorun=hire|premium|hsp starts one flow on load (handy for screen recordings)
-const auto = new URLSearchParams(location.search).get('autorun');
-if (auto === 'hire' || auto === 'premium' || auto === 'hsp') ($(auto === 'hire' ? 'btn-hire' : auto === 'premium' ? 'btn-premium' : 'btn-hsp') as HTMLButtonElement).click();

@@ -118,14 +118,21 @@ export async function readReceipt(net: NetworkConfig, taskId: Hex): Promise<Exis
   const pub = publicClientFor(net);
   const r = await pub.readContract({ address: net.receiptsAddress, abi: RECEIPTS_ABI, functionName: 'receipts', args: [taskId] });
   if (r[7] === 0n) return undefined;
-  const latest = await pub.getBlockNumber();
-  const logs = await pub.getContractEvents({
-    address: net.receiptsAddress,
-    abi: RECEIPTS_ABI,
-    eventName: 'TaskSettled',
-    args: { taskId },
-    fromBlock: latest > 50_000n ? latest - 50_000n : 0n,
-    toBlock: latest,
-  });
-  return { payer: r[0], payee: r[1], amount: r[3], settleTx: r[4], resultHash: r[6], at: r[7], tx: logs[0]?.transactionHash };
+  let tx: Hex | undefined;
+  try {
+    // only to show the receipt tx; a public RPC that caps log ranges must not turn a paid retry into an error
+    const latest = await pub.getBlockNumber();
+    const logs = await pub.getContractEvents({
+      address: net.receiptsAddress,
+      abi: RECEIPTS_ABI,
+      eventName: 'TaskSettled',
+      args: { taskId },
+      fromBlock: latest > 50_000n ? latest - 50_000n : 0n,
+      toBlock: latest,
+    });
+    tx = logs[0]?.transactionHash ?? undefined;
+  } catch {
+    tx = undefined;
+  }
+  return { payer: r[0], payee: r[1], amount: r[3], settleTx: r[4], resultHash: r[6], at: r[7], tx };
 }

@@ -170,12 +170,14 @@ export async function findAuthorizationTx(net: NetworkConfig, from: Address, non
 export async function confirmTransfer(
   net: NetworkConfig,
   tx: Hex,
-  expect: { from: Address; to: Address; value: bigint; nonce?: Hex },
+  expect: { from: Address; to: Address; value: bigint; nonce?: Hex; afterBlock?: bigint },
   timeoutMs = 30_000,
 ): Promise<boolean> {
   try {
     const receipt = await publicClientFor(net).waitForTransactionReceipt({ hash: tx, timeout: timeoutMs });
     if (receipt.status !== 'success') return false;
+    // without a nonce (HSP plain transfers) bind by time: the tx must be newer than the moment we asked to pay
+    if (expect.afterBlock !== undefined && receipt.blockNumber <= expect.afterBlock) return false;
     if (expect.nonce) {
       // bind the tx to THIS authorization: an older payment of the same amount by the same payer does not count
       const used = parseEventLogs({ abi: [AUTHORIZATION_USED_EVENT], logs: receipt.logs, eventName: 'AuthorizationUsed' });

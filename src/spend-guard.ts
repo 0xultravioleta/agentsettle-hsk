@@ -1,4 +1,4 @@
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, linkSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync, writeSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { USDC } from './config.js';
 
@@ -86,25 +86,39 @@ export class FileLedger implements SpendLedger {
     renameSync(tmp, this.path);
   }
 
-  /** `pnpm demo` and `pnpm start` may share this file: an O_EXCL lock file makes check + book one unit across them. */
+  /**
+   * `pnpm demo` and `pnpm start` may share this file: an O_EXCL lock file holding the owner's pid makes check + book
+   * one unit across them. A lock whose owner is dead (or, with no pid, older than staleMs) is taken over by an atomic
+   * rename to a private name, so two waiters cannot both remove it; a live lock grabbed by mistake is put back.
+   */
   atomically<T>(fn: () => T, opts: { waitMs?: number; staleMs?: number } = {}): T {
     const lock = `${this.path}.lock`;
     mkdirSync(dirname(this.path), { recursive: true });
     const deadline = Date.now() + (opts.waitMs ?? 5_000);
     for (;;) {
       try {
-        closeSync(openSync(lock, 'wx'));
+        const fd = openSync(lock, 'wx');
+        writeSync(fd, String(process.pid));
+        closeSync(fd);
         break;
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
-        try {
-          // a crashed holder leaves the file behind; a check + book takes milliseconds
-          if (Date.now() - statSync(lock).mtimeMs > (opts.staleMs ?? 10_000)) {
-            unlinkSync(lock);
-            continue;
+        if (isStale(lock, opts.staleMs ?? 10_000)) {
+          const mine = `${lock}.${process.pid}.${Math.random().toString(36).slice(2)}`;
+          try {
+            renameSync(lock, mine);
+          } catch {
+            continue; // someone else moved or released it first
           }
-        } catch {
-          continue; // the holder released it between our two calls
+          if (!isStale(mine, opts.staleMs ?? 10_000)) {
+            try {
+              linkSync(mine, lock); // it was a fresh lock after all: put it back if the path is still free
+            } catch {
+              /* path taken again; the fresh owner keeps its critical section */
+            }
+          }
+          rmQuiet(mine);
+          continue;
         }
         if (Date.now() > deadline) throw new Error(`spend ledger is locked by another process: ${lock}`);
         sleepSync(20);
@@ -113,12 +127,36 @@ export class FileLedger implements SpendLedger {
     try {
       return fn();
     } finally {
-      try {
-        unlinkSync(lock);
-      } catch {
-        /* already gone */
-      }
+      rmQuiet(lock);
     }
+  }
+}
+
+function rmQuiet(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch {
+    /* already gone */
+  }
+}
+
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+/** Owner pid dead, or no readable pid and older than staleMs. */
+function isStale(path: string, staleMs: number): boolean {
+  try {
+    const pid = Number(readFileSync(path, 'utf8').trim());
+    if (Number.isInteger(pid) && pid > 0) return !pidAlive(pid);
+    return Date.now() - statSync(path).mtimeMs > staleMs;
+  } catch {
+    return false;
   }
 }
 

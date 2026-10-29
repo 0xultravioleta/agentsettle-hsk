@@ -28,7 +28,9 @@ esac
 
 KEY="${!KEY_VAR:-}"
 [[ -n "$KEY" ]] || { echo "$KEY_VAR is empty in .env" >&2; exit 1; }
-FROM=$(cast wallet address --private-key "$KEY")
+# the key travels in the environment only (argv is visible to every local user in ps)
+FROM=$(DEPLOYER_PRIVATE_KEY="$KEY" node --input-type=module -e \
+  "import { privateKeyToAccount } from 'viem/accounts'; console.log(privateKeyToAccount(process.env.DEPLOYER_PRIVATE_KEY).address)")
 [[ "$(cast chain-id --rpc-url "$RPC")" == "$CHAIN" ]] || { echo "RPC $RPC is not chain $CHAIN" >&2; exit 1; }
 BAL=$(cast balance "$FROM" --rpc-url "$RPC")
 echo "operator $FROM balance $(cast from-wei "$BAL") HSK on chain $CHAIN"

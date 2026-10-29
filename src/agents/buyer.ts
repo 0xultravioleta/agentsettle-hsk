@@ -52,8 +52,14 @@ export interface BuyerOptions {
   guard: SpendGuard;
   /** The agent we meant to hire: a 402 that names any other payee is refused (redirects, MITM, compromised URL). */
   expectedPayTo?: Address;
+  /** Retries of the same X-PAYMENT after 502/503 or a 409 with Retry-After (default 3). */
+  sameHeaderRetries?: number;
+  /** Multiplier for Retry-After seconds (tests use a few ms). */
+  retryUnitMs?: number;
   fetchImpl?: typeof fetch;
 }
+
+const isRetryable = (r: Response) => r.status === 502 || r.status === 503 || (r.status === 409 && r.headers.has('retry-after'));
 
 export async function hire(opts: BuyerOptions, url: string): Promise<HireResult> {
   const steps: Step[] = [];
@@ -136,8 +142,18 @@ async function hireInner(opts: BuyerOptions, url: string, steps: Step[]): Promis
     token: `${net.usdc.eip712.name} v${net.usdc.eip712.version} ${requirement.asset}`,
   });
 
-  const paid = await f(url, { headers: { [PAYMENT_HEADER]: encodeHeader(payment) } });
+  // A lost or failed settle answer is retried with the SAME signed payment: it can only settle once, and the seller
+  // answers a retry with the original delivery. Never sign again for the same task.
+  const header = encodeHeader(payment);
+  let paid = await f(url, { headers: { [PAYMENT_HEADER]: header } });
   push('paid_request', `retry with ${PAYMENT_HEADER} -> ${paid.status}`);
+  for (let attempt = 1; attempt <= (opts.sameHeaderRetries ?? 3) && isRetryable(paid); attempt++) {
+    const wait = Math.min(10, Number(paid.headers.get('retry-after') ?? '2') || 2) * (opts.retryUnitMs ?? 1000);
+    push('paid_request', `${paid.status}: retrying the same ${PAYMENT_HEADER} in ${wait} ms (no new signature)`);
+    await new Promise((r) => setTimeout(r, wait));
+    paid = await f(url, { headers: { [PAYMENT_HEADER]: header } });
+    push('paid_request', `same ${PAYMENT_HEADER} -> ${paid.status}`);
+  }
   if (paid.status !== 200) {
     push('error', `seller answered ${paid.status}`, { body: await paid.text() });
     return { ok: false, steps };

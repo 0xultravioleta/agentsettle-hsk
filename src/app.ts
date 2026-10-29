@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { Hono, type Context, type Next } from 'hono';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { explorerAddress, PREMIUM_TASK_PRICE, TASK_PRICE } from './config.js';
@@ -42,7 +43,23 @@ export function consoleGuard(publicUrl: string) {
 
 export function createApp(rt: Runtime, publicUrl: string): Hono {
   const app = new Hono();
-  app.route('/', createSeller({ net: rt.net, operator: rt.operator, facilitator: facilitatorClient(rt.facilitatorUrl), publicUrl, log: (m) => console.log(`[agent B] ${m}`) }));
+  // the console must not be framed (clickjacking its buttons spends the buyer's money)
+  app.use('*', async (c, next) => {
+    await next();
+    c.header('X-Frame-Options', 'DENY');
+    c.header('Content-Security-Policy', "frame-ancestors 'none'");
+  });
+  app.route(
+    '/',
+    createSeller({
+      net: rt.net,
+      operator: rt.operator,
+      facilitator: facilitatorClient(rt.facilitatorUrl),
+      publicUrl,
+      bindingPath: join('data', `seller-tasks.${rt.net.name}.json`),
+      log: (m) => console.log(`[agent B] ${m}`),
+    }),
+  );
   app.use('/api/*', consoleGuard(publicUrl));
 
   app.get('/api/config', (c) =>
