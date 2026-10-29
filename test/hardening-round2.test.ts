@@ -173,6 +173,52 @@ describe.skipIf(!canRun)('on anvil (1 s blocks, like a real chain)', () => {
     expect(await balance(buyer().address)).toBe(before - 100_000n);
   }, 60_000);
 
+  it('after a restart (empty memory), the receipt alone still refuses a paid authorization for another task', async () => {
+    const mk = () => createSeller({ net: chain.net, operator: operator(), facilitator: facilitatorClient(facUrl), publicUrl: 'http://seller.test', confirmTimeoutMs: 20_000 });
+    const req = buildPaymentRequired(chain.net, { payTo: operator().address, amount: 100_000n, resource: resource('hello') }).accepts[0]!;
+    const header = encodeHeader(await signExactPayment(buyer(), chain.net, req, resource('hello')));
+    expect((await mk().request('/task/translate?text=hello', { headers: { 'X-PAYMENT': header } })).status).toBe(200);
+    const restarted = mk();
+    expect((await restarted.request('/task/translate?text=thanks', { headers: { 'X-PAYMENT': header } })).status).toBe(409);
+    expect((await restarted.request('/task/translate?text=hello', { headers: { 'X-PAYMENT': header } })).status).toBe(200);
+  }, 60_000);
+
+  it('a facilitator that gives a generic reason for a used authorization: the chain says used, so it is a retry, not a new 402', async () => {
+    const real = facilitatorClient(facUrl);
+    const vague: Facilitator = {
+      verify: async (p, r, o) => {
+        const v = await real.verify(p, r, o);
+        return v.isValid ? v : ({ isValid: false, invalidReason: 'unexpected_verify_error' } as any);
+      },
+      settle: (p, r, o) => real.settle(p, r, o),
+    };
+    const app = createSeller({ net: chain.net, operator: operator(), facilitator: vague, publicUrl: 'http://seller.test', confirmTimeoutMs: 20_000 });
+    const req = buildPaymentRequired(chain.net, { payTo: operator().address, amount: 100_000n, resource: resource('money') }).accepts[0]!;
+    const header = encodeHeader(await signExactPayment(buyer(), chain.net, req, resource('money')));
+    expect((await app.request('/task/translate?text=money', { headers: { 'X-PAYMENT': header } })).status).toBe(200);
+    const again = await app.request('/task/translate?text=money', { headers: { 'X-PAYMENT': header } });
+    expect(again.status).toBe(200);
+    expect((await again.json()).replayed).toBe(true);
+  }, 60_000);
+
+  it('a payment bound to one task is never sent to settle for another', async () => {
+    let settles = 0;
+    const real = facilitatorClient(facUrl);
+    const failsOnce: Facilitator = {
+      verify: (p, r, o) => real.verify(p, r, o),
+      settle: async () => {
+        settles++;
+        return { success: false, errorReason: 'rpc_down' } as any; // nothing was broadcast
+      },
+    };
+    const app = createSeller({ net: chain.net, operator: operator(), facilitator: failsOnce, publicUrl: 'http://seller.test', confirmTimeoutMs: 5_000 });
+    const req = buildPaymentRequired(chain.net, { payTo: operator().address, amount: 100_000n, resource: resource('fast') }).accepts[0]!;
+    const header = encodeHeader(await signExactPayment(buyer(), chain.net, req, resource('fast')));
+    expect((await app.request('/task/translate?text=fast', { headers: { 'X-PAYMENT': header } })).status).toBe(502);
+    expect((await app.request('/task/translate?text=money', { headers: { 'X-PAYMENT': header } })).status).toBe(409);
+    expect(settles).toBe(1);
+  }, 30_000);
+
   it('P3-2: an HSP ACCEPT that points at an OLDER transfer of the same amount is not delivered', async () => {
     const w = walletClientFor(chain.net, buyer());
     const old = await w.writeContract({ address: chain.net.usdc.address, abi: ERC20_EIP3009_ABI, functionName: 'transfer', args: [operator().address, 100_000n] });
