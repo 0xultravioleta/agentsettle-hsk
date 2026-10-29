@@ -77,6 +77,14 @@ describe('selectRequirement (buyer)', () => {
     expect(() => selectRequirement(b, testnet)).toThrow(new RegExp(label));
   });
 
+  it('bounds how long the signature stays valid, whatever the seller asks', () => {
+    for (const [asked, used] of [[1e12, 600], [600, 600], [5, 30], [-1, 120], [Number.NaN, 120], ['300', 120], [299.9, 299]] as const) {
+      const b: any = good();
+      b.accepts[0].maxTimeoutSeconds = asked;
+      expect(selectRequirement(b, testnet).maxTimeoutSeconds, String(asked)).toBe(used);
+    }
+  });
+
   it('refuses a body without accepts', () => {
     expect(() => selectRequirement({}, testnet)).toThrow(NoAcceptableRequirementError);
     expect(() => selectRequirement(null, testnet)).toThrow(NoAcceptableRequirementError);

@@ -148,11 +148,18 @@ export function selectRequirement(body: unknown, net: NetworkConfig): PaymentReq
       asset: net.usdc.address,
       amount: amount!,
       payTo: getAddress(r.payTo!),
-      maxTimeoutSeconds: typeof r.maxTimeoutSeconds === 'number' && r.maxTimeoutSeconds > 0 ? r.maxTimeoutSeconds : 120,
+      maxTimeoutSeconds: clampTimeout(r.maxTimeoutSeconds),
       extra: { ...net.usdc.eip712 },
     };
   }
   throw new NoAcceptableRequirementError(reasons);
+}
+
+/** The buyer decides how long its signature stays spendable: the seller's ask, within 30 s..10 min (default 2 min). */
+export const MAX_AUTHORIZATION_SECONDS = 600;
+export function clampTimeout(v: unknown): number {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) return 120;
+  return Math.min(MAX_AUTHORIZATION_SECONDS, Math.max(30, Math.floor(v)));
 }
 
 export function randomNonce(): Hex {
