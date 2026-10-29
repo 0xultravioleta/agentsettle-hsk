@@ -47,6 +47,8 @@ describe('accounts', () => {
       process.env.K = v;
       expect(accountFromEnv('K')?.address).toBe(addr);
     }
+    process.env.K = key.slice(0, 40); // valid hex, wrong length: our message, not viem's (which may echo the input)
+    expect(() => accountFromEnv('K')).toThrow(/^K is not a 32-byte hex private key$/);
     process.env.K = `${key.slice(0, 40)}zz`;
     expect(() => accountFromEnv('K')).toThrow(/^K is not/);
     try {

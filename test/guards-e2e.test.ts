@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getAddress } from 'viem';
+import { createTestClient, getAddress, http } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { createSeller, type Facilitator } from '../src/agents/seller.js';
 import { publicClientFor } from '../src/chain.js';
@@ -81,6 +81,26 @@ describe.skipIf(!canRun)('guards on anvil', () => {
     expect((await fac.verify(envelope(p, req))).invalidReason).toMatch(/signature/);
   });
 
+  it('two concurrent settles with 1 s blocks (like a real chain) still send exactly one transaction', async () => {
+    const req = requirement();
+    const body = envelope(await signExactPayment(buyer(), chain.net, req, resource), req);
+    const pub = publicClientFor(chain.net);
+    const gasWallet = privateKeyToAccount(chain.keys.facilitator).address;
+    const test = createTestClient({ mode: 'anvil', transport: http(chain.net.rpcUrl) });
+    const n0 = await pub.getTransactionCount({ address: gasWallet });
+    await test.setAutomine(false);
+    await test.setIntervalMining({ interval: 1 });
+    try {
+      const [a, b] = await Promise.all([fac.settle(body), fac.settle(body)]);
+      expect([a.success, b.success].filter(Boolean)).toHaveLength(1);
+      expect([a.errorReason, b.errorReason]).toContain('authorization_in_flight');
+    } finally {
+      await test.setIntervalMining({ interval: 0 });
+      await test.setAutomine(true);
+    }
+    expect(await pub.getTransactionCount({ address: gasWallet })).toBe(n0 + 1);
+  }, 30_000);
+
   it('two concurrent settles of one authorization send exactly one transaction', async () => {
     const req = requirement();
     const body = envelope(await signExactPayment(buyer(), chain.net, req, resource), req);
@@ -134,6 +154,14 @@ describe.skipIf(!canRun)('guards on anvil', () => {
         expect(r.maxAmountRequired).toBe('100000');
         expect(r.asset).toBe(chain.net.usdc.address);
       }
+    });
+
+    it('does not deliver when the settle tx was mined but reverted (success false WITH a hash)', async () => {
+      const res = await callSeller({
+        verify: async () => ({ isValid: true }) as any,
+        settle: async () => ({ success: false, errorReason: 'transaction_reverted', transactionHash: `0x${'bb'.repeat(32)}` }) as any,
+      });
+      expect(res.status).toBe(502);
     });
 
     it('does not deliver on success without a transaction hash', async () => {
