@@ -76,6 +76,7 @@ describe('P2-2: the console API and the local facilitator refuse cross-site requ
   const app = new Hono();
   app.use('/api/*', consoleGuard('http://127.0.0.1:8402'));
   app.post('/api/hire', (c) => c.json({ ran: true }));
+  app.get('/api/config', (c) => c.json({ ok: true }));
   const post = (headers: Record<string, string>, body = '{"text":"x"}') => app.request('http://127.0.0.1:8402/api/hire', { method: 'POST', headers, body });
 
   it('a cross-site text/plain "simple request" is refused', async () => {
@@ -87,6 +88,12 @@ describe('P2-2: the console API and the local facilitator refuse cross-site requ
     expect((await post({ 'content-type': 'application/json', 'sec-fetch-site': 'same-site', host: '127.0.0.1:8402' })).status).toBe(403);
     expect((await post({ 'content-type': 'application/json', origin: 'http://evil.example:8402', 'sec-fetch-site': 'same-origin', host: 'evil.example:8402' })).status).toBe(403);
   });
+  it('DNS rebinding: a same-origin GET carries no Origin, so the Host check is what stops it', async () => {
+    const get = (host: string) => app.request('http://127.0.0.1:8402/api/config', { headers: { host, 'sec-fetch-site': 'same-origin' } });
+    expect((await get('evil.example:8402')).status).toBe(403);
+    expect((await get('127.0.0.1:8402')).status).toBe(200);
+  });
+
   it('the console itself (and the Vite dev server) gets through', async () => {
     expect((await post({ 'content-type': 'application/json', origin: 'http://127.0.0.1:8402', 'sec-fetch-site': 'same-origin', host: '127.0.0.1:8402' })).status).toBe(200);
     expect((await post({ 'content-type': 'application/json; charset=utf-8', origin: 'http://localhost:5173', 'sec-fetch-site': 'same-origin', host: 'localhost:5173' })).status).toBe(200);
@@ -187,6 +194,26 @@ describe.skipIf(!canRun)('on anvil', () => {
     expect((await third.json()).receipt.existing).toBe(true);
     expect(await balance(buyer().address)).toBe(before - 100_000n); // still one charge
     expect((await listReceipts(chain.net)).length).toBe(receiptsBefore + 1); // one receipt
+  });
+
+  it('a facilitator "no" is not overridden on the first pass even if the tx landed; the retry reconciles from the chain', async () => {
+    const real = facilitatorClient(facUrl);
+    let first = true;
+    const saysNo: Facilitator = {
+      verify: (p, r, o) => real.verify(p, r, o),
+      settle: async (p, r, o) => {
+        const res = await real.settle(p, r, o);
+        if (!first) return res;
+        first = false;
+        return { ...res, success: false, errorReason: 'transaction_reverted' } as any;
+      },
+    };
+    const app = sellerWith(saysNo);
+    const header = await pay('good');
+    expect((await app.request('/task/translate?text=good', { headers: { 'X-PAYMENT': header } })).status).toBe(502);
+    const retry = await app.request('/task/translate?text=good', { headers: { 'X-PAYMENT': header } });
+    expect(retry.status).toBe(200);
+    expect((await retry.json()).replayed).toBe(true);
   });
 
   it('P2-3: a facilitator that answers with an older tx of the same payer and amount is not believed', async () => {
