@@ -65,7 +65,7 @@ scripts/demo.sh            # local chain: anvil + an EIP-3009 USDC mock with the
 | `scripts/demo.sh --ui`, then open http://127.0.0.1:8402 | The judge console opens, with receipts seeded from the run. |
 | Click **Hire Agent B · 0.10 USDC** | The flow animates: the 402 body, the signature with "gas paid by buyer: 0", the settle tx, and the receipt tx. A new row appears in **On-chain receipts**. |
 | Click **Premium task · 2.00 USDC** | "Spend policy DENIED: 2.00 USDC is over the per-transaction cap of 0.50 USDC". Nothing was signed. |
-| `curl -i "http://127.0.0.1:8402/task/translate?text=hello"` | A raw `HTTP/1.1 402` with the x402 `accepts` body and a `PAYMENT-REQUIRED` header. |
+| `curl -i "http://127.0.0.1:8402/task/translate?text=hello"` (with `--ui` running) | A raw `HTTP/1.1 402` with the x402 `accepts` body and a `PAYMENT-REQUIRED` header. |
 | `scripts/reset.sh` | Clean slate: the local chain state and the spend ledger are cleared. |
 
 On HashKey testnet or mainnet, the same command prints Blockscout links for every transaction:
@@ -89,7 +89,7 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 
 | Piece | State |
 |---|---|
-| Contract + Foundry tests (10 for the contract, 5 for the local USDC mock) | ✅ |
+| Contract + Foundry tests (10 for the contract, 5 for the local USDC mock, 1 for the deploy guard) | ✅ |
 | x402 flow end to end (seller, SDK client, facilitator, EIP-3009 transfer, receipt) on a local chain | ✅ covered by `test/e2e-local.test.ts` and `test/guards-e2e.test.ts` |
 | Contract on HashKey testnet | ⏳ waiting for faucet HSK on the operator wallet |
 | x402 settle on HashKey testnet | ⏳ waiting for test USDC (`0x8FE3…`) on the buyer wallet |
@@ -102,11 +102,20 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 
 - **The buyer refuses before signing** in these cases:
   - another network, another token, or an unknown EIP-712 domain;
+  - a payee other than the agent it hired;
   - a malformed or zero amount;
   - anything over its caps.
-- **The seller checks every payment against its own price,** not against the buyer's copy. It delivers only after the facilitator verified **and** settled with a transaction hash. A replayed `X-PAYMENT` is refused.
+
+  Its signature stays valid for at most 10 minutes, whatever the seller asks.
+- **The seller checks every payment against its own price,** not against the buyer's copy. It delivers only when three things hold:
+  - the facilitator verified the payment;
+  - the facilitator settled it;
+  - the mined transaction shows `AuthorizationUsed(payer, nonce)` and the exact USDC transfer to the seller. A facilitator's word alone is not enough.
+- **A retried `X-PAYMENT`** (for example, after a lost response) gets the same delivery back: no second charge and no second receipt. The same authorization reused for a different task gets `409`, never a new `402`.
 - **`taskId` is derived from the payment** (chain, payer, EIP-3009 nonce). A retried delivery therefore cannot write a second receipt: the contract reverts with `exists`.
-- **Mainnet guard:** nothing runs on chain 177 unless `MAINNET_OWNER_OK=yes` is set. On mainnet only the production facilitator settles.
+- **The console API (`/api/*`) only answers the console itself.** It requires a JSON body, a same-origin `Origin`/`Sec-Fetch-Site`, and our own `Host`, which stops DNS rebinding.
+- **The local facilitator** listens on its own loopback port. It refuses browser requests and settles only payments to our seller.
+- **Mainnet guard:** nothing runs on chain 177 unless `MAINNET_OWNER_OK=yes` is set. This includes `forge script` itself (`Deploy.s.sol`). On mainnet only the production facilitator settles.
 - **Keys** live only in `.env`, which is gitignored. They are never logged, never echoed in errors, and never returned by the API. `gitleaks` runs in CI on every commit.
 
 ## Built before vs. during the hackathon
@@ -138,9 +147,10 @@ docs/WALLETS.md · docs/FUNDING.md      public addresses; mainnet funding route 
 ## Tests
 
 ```bash
-forge test                        # contract: operator-only (with fuzz), no duplicate taskId, event, storage
-pnpm install && pnpm test         # unit + end-to-end on anvil: payment, receipt fields, caps, replay, forged signature,
-                                  # tampered price, broke buyer, every facilitator guard, concurrent settle
+forge test                        # contract: operator-only (with fuzz), no duplicate taskId, event, storage; deploy guard
+pnpm install && pnpm test         # unit + end-to-end on anvil: payment, receipt fields, caps, retries and replays,
+                                  # forged signature, tampered price, broke buyer, every facilitator guard, concurrent
+                                  # settle, lost settle response, lying facilitator, cross-site requests, HSP checks
 bash scripts/ci/preflight.sh      # exactly what CI runs (Node 20, pnpm 10, Foundry, gitleaks)
 ```
 
