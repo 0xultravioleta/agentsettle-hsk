@@ -5,12 +5,13 @@ import {Script, console2} from "forge-std/Script.sol";
 import {AgentSettleReceipts} from "../AgentSettleReceipts.sol";
 
 /// @notice Deploys AgentSettleReceipts with the broadcaster as operator.
-/// Testnet:  forge script contracts/script/Deploy.s.sol --rpc-url https://testnet.hsk.xyz --broadcast \
-///             --private-key "$TESTNET_OPERATOR_PRIVATE_KEY"
-/// Mainnet:  ONLY with the owner's OK for the exact HSK amount (see PREGUNTA-c0der.md).
+/// Use scripts/deploy.sh: it passes the key through DEPLOYER_PRIVATE_KEY (never on the command line),
+/// refuses mainnet without MAINNET_OWNER_OK=yes, verifies on Blockscout and records the address in .env.
 contract Deploy is Script {
     function run() external returns (AgentSettleReceipts deployed) {
-        vm.startBroadcast();
+        uint256 pk = vm.envOr("DEPLOYER_PRIVATE_KEY", uint256(0));
+        if (pk != 0) vm.startBroadcast(pk);
+        else vm.startBroadcast();
         (, address sender,) = vm.readCallers();
         deployed = new AgentSettleReceipts(sender);
         vm.stopBroadcast();
