@@ -117,7 +117,7 @@ export class NoAcceptableRequirementError extends Error {
  * Buyer: pick the requirement it is willing to sign. It must be exact/EIP-3009 on the buyer's own network,
  * in the buyer's own USDC, with the token domain the buyer already knows; the seller never chooses the token.
  */
-export function selectRequirement(body: unknown, net: NetworkConfig): PaymentRequirement {
+export function selectRequirement(body: unknown, net: NetworkConfig, opts: { expectedPayTo?: Address } = {}): PaymentRequirement {
   const accepts = (body as { accepts?: unknown })?.accepts;
   if (!Array.isArray(accepts)) throw new NoAcceptableRequirementError(['402 body has no accepts array']);
   const reasons: string[] = [];
@@ -135,6 +135,8 @@ export function selectRequirement(body: unknown, net: NetworkConfig): PaymentReq
               ? `amount ${String(amount)}`
               : typeof r.payTo !== 'string' || !isAddress(r.payTo, { strict: false })
                 ? `payTo ${String(r.payTo)}`
+                : opts.expectedPayTo && !sameAddress(r.payTo, opts.expectedPayTo)
+                  ? `payTo ${r.payTo} is not the agent we hired (${opts.expectedPayTo})`
                 : r.extra?.name !== net.usdc.eip712.name || r.extra?.version !== net.usdc.eip712.version
                   ? `token domain ${JSON.stringify(r.extra)}`
                   : undefined;
@@ -166,24 +168,40 @@ export function randomNonce(): Hex {
   return toHex(crypto.getRandomValues(new Uint8Array(32)));
 }
 
-/** Buyer: sign the EIP-3009 authorization for `requirement`. No gas: the facilitator broadcasts. */
-export async function signExactPayment(
+/**
+ * Buyer: the EIP-3009 authorization for `requirement`, fully formed and validated (every uint parses), so that
+ * nothing can fail after the spend is booked. No gas: the facilitator broadcasts.
+ */
+export function buildAuthorization(
+  from: Address,
+  requirement: PaymentRequirement,
+  opts: { nowSeconds?: number; nonce?: Hex } = {},
+): Authorization {
+  const now = opts.nowSeconds ?? Math.floor(Date.now() / 1000);
+  const window = clampTimeout(requirement.maxTimeoutSeconds);
+  const authorization: Authorization = {
+    from,
+    to: getAddress(requirement.payTo),
+    value: requirement.amount,
+    // 10 minutes of clock skew, as the x402 reference client does.
+    validAfter: String(now - 600),
+    validBefore: String(now + window),
+    nonce: opts.nonce ?? randomNonce(),
+  };
+  for (const k of ['value', 'validAfter', 'validBefore'] as const) {
+    if (!UINT.test(authorization[k])) throw new Error(`authorization.${k} is not a uint: ${authorization[k]}`);
+  }
+  if (!isHex(authorization.nonce) || authorization.nonce.length !== 66) throw new Error('authorization.nonce is not bytes32');
+  return authorization;
+}
+
+export async function signAuthorization(
   account: LocalAccount,
   net: NetworkConfig,
   requirement: PaymentRequirement,
   resource: ResourceInfo,
-  opts: { nowSeconds?: number; nonce?: Hex } = {},
+  authorization: Authorization,
 ): Promise<PaymentPayload> {
-  const now = opts.nowSeconds ?? Math.floor(Date.now() / 1000);
-  const authorization: Authorization = {
-    from: account.address,
-    to: requirement.payTo,
-    value: requirement.amount,
-    // 10 minutes of clock skew, as the x402 reference client does.
-    validAfter: String(now - 600),
-    validBefore: String(now + requirement.maxTimeoutSeconds),
-    nonce: opts.nonce ?? randomNonce(),
-  };
   const signature = await account.signTypedData({
     domain: {
       name: net.usdc.eip712.name,
@@ -203,6 +221,17 @@ export async function signExactPayment(
     },
   });
   return { x402Version: 2, resource, accepted: requirement, payload: { signature, authorization } };
+}
+
+/** build + sign in one call (tests, tools). */
+export async function signExactPayment(
+  account: LocalAccount,
+  net: NetworkConfig,
+  requirement: PaymentRequirement,
+  resource: ResourceInfo,
+  opts: { nowSeconds?: number; nonce?: Hex } = {},
+): Promise<PaymentPayload> {
+  return signAuthorization(account, net, requirement, resource, buildAuthorization(account.address, requirement, opts));
 }
 
 /**

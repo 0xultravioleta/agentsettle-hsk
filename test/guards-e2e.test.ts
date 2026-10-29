@@ -51,6 +51,12 @@ describe.skipIf(!canRun)('guards on anvil', () => {
     const req = requirement();
     const p = await signExactPayment(buyer(), chain.net, req, resource, { nowSeconds: nowSec() + 3600 });
     expect((await fac.verify(envelope(p, req))).invalidReason).toMatch(/valid_after/);
+    // the token wants block.timestamp > validAfter, so validAfter == now is not valid yet either
+    const fixedNow = 1_900_000_000;
+    const strict = createLocalFacilitator({ net: chain.net, signer: privateKeyToAccount(chain.keys.facilitator), now: () => fixedNow });
+    const edge = await signExactPayment(buyer(), chain.net, req, resource, { nowSeconds: fixedNow + 600 });
+    expect(edge.payload.authorization.validAfter).toBe(String(fixedNow));
+    expect((await strict.verify(envelope(edge, req))).invalidReason).toMatch(/valid_after/);
   });
 
   it('rejects when the authorization pays someone other than payTo', async () => {

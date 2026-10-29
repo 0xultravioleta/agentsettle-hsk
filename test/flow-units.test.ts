@@ -26,6 +26,8 @@ describe('receipts ids', () => {
   });
 });
 
+const SIG = `0x${'11'.repeat(32)}${'22'.repeat(32)}1b`;
+
 describe('local facilitator request parsing', () => {
   const auth = {
     from: '0x1111111111111111111111111111111111111111',
@@ -37,18 +39,23 @@ describe('local facilitator request parsing', () => {
   };
   const accepted = { scheme: 'exact', network: 'eip155:133', asset: '0x8FE3cB719Ee4410E236Cd6b72ab1fCDC06eF53c6', amount: '100000', payTo: auth.to, maxTimeoutSeconds: 120 };
   it('reads the uvd-x402-sdk v2 envelope', () => {
-    const r = parseFacilitatorRequest({ x402Version: 2, paymentPayload: { x402Version: 2, payload: { signature: '0xaa', authorization: auth } }, accepted, resource: {} });
+    const r = parseFacilitatorRequest({ x402Version: 2, paymentPayload: { x402Version: 2, payload: { signature: SIG, authorization: auth } }, accepted, resource: {} });
     expect(typeof r).toBe('object');
   });
   it('reads the spec shape with paymentRequirements and maxAmountRequired', () => {
     const { amount, ...rest } = accepted;
-    const r = parseFacilitatorRequest({ paymentPayload: { payload: { signature: '0xaa', authorization: auth } }, paymentRequirements: { ...rest, maxAmountRequired: amount } });
+    const r = parseFacilitatorRequest({ paymentPayload: { payload: { signature: SIG, authorization: auth } }, paymentRequirements: { ...rest, maxAmountRequired: amount } });
     expect(typeof r === 'object' && r.requirement.amount).toBe('100000');
   });
+  it('refuses a zero amount and a signature that is not 65 bytes', () => {
+    expect(parseFacilitatorRequest({ paymentPayload: { payload: { signature: SIG, authorization: { ...auth, value: '0' } } }, accepted: { ...accepted, amount: '0' } })).toMatch(/positive/);
+    expect(parseFacilitatorRequest({ paymentPayload: { payload: { signature: SIG.slice(0, 130), authorization: auth } }, accepted })).toMatch(/65 bytes/);
+  });
+
   it('names what is missing', () => {
     expect(parseFacilitatorRequest(undefined)).toMatch(/invalid_payload/);
-    expect(parseFacilitatorRequest({ paymentPayload: { payload: { signature: '0xaa', authorization: { ...auth, value: '1.5' } } }, accepted })).toMatch(/value/);
-    expect(parseFacilitatorRequest({ paymentPayload: { payload: { signature: '0xaa', authorization: { ...auth, nonce: '0x01' } } }, accepted })).toMatch(/nonce/);
+    expect(parseFacilitatorRequest({ paymentPayload: { payload: { signature: SIG, authorization: { ...auth, value: '1.5' } } }, accepted })).toMatch(/value/);
+    expect(parseFacilitatorRequest({ paymentPayload: { payload: { signature: SIG, authorization: { ...auth, nonce: '0x01' } } }, accepted })).toMatch(/nonce/);
   });
 });
 

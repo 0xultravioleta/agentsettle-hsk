@@ -25,11 +25,11 @@ done
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing $1: $2" >&2; exit 1; }; }
 need node "install Node 20+ (https://nodejs.org)"
 need forge "install Foundry: curl -L https://foundry.paradigm.xyz | bash && foundryup"
-PNPM="pnpm"
-command -v pnpm >/dev/null 2>&1 || PNPM="npx -y pnpm@10.34.9"
-
+# the lockfile is pnpm 10's: install with exactly that version, then run the local binaries directly
 [[ -f lib/forge-std/src/Test.sol ]] || git submodule update --init --recursive
-[[ -d node_modules ]] || $PNPM install --frozen-lockfile
+[[ -x node_modules/.bin/tsx ]] || npx -y pnpm@10.34.9 install --frozen-lockfile
+TSX=node_modules/.bin/tsx
+VITE=node_modules/.bin/vite
 forge build --quiet
 
 ANVIL_PID=""
@@ -51,10 +51,10 @@ if [[ "$NETWORK" == "local" ]]; then
   fi
 fi
 
-$PNPM exec tsx src/cli/demo.ts "${ARGS[@]}"
+"$TSX" src/cli/demo.ts "${ARGS[@]}"
 
 if [[ "$UI" == 1 ]]; then
-  $PNPM exec vite build web --logLevel warn
+  "$VITE" build web --logLevel warn
   echo
   echo "Judge UI: http://127.0.0.1:8402   (Ctrl+C to stop)"
   SERVE_ARGS=()
@@ -64,5 +64,5 @@ if [[ "$UI" == 1 ]]; then
       --runs|--text) i=$((i + 1)) ;;
     esac
   done
-  $PNPM exec tsx src/cli/serve.ts "${SERVE_ARGS[@]}"
+  "$TSX" src/cli/serve.ts "${SERVE_ARGS[@]}"
 fi

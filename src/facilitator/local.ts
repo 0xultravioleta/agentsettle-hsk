@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { getAddress, isAddress, isHex, parseSignature, verifyTypedData, type Hex, type LocalAccount } from 'viem';
+import { getAddress, isAddress, isHex, parseSignature, verifyTypedData, type Address, type Hex, type LocalAccount } from 'viem';
 import type { NetworkConfig } from '../config.js';
 import { ERC20_EIP3009_ABI, publicClientFor, walletClientFor } from '../chain.js';
 import { TRANSFER_WITH_AUTHORIZATION_TYPES, networkMatches, type Authorization, type PaymentRequirement } from '../rails/x402.js';
@@ -32,6 +32,7 @@ interface Parsed {
 }
 
 const UINT = /^[0-9]+$/;
+const SECP256K1_HALF_N = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0n;
 
 /** Accepts the SDK v2 envelope ({paymentPayload:{payload}, accepted}) and the spec shape ({paymentPayload, paymentRequirements}). */
 export function parseFacilitatorRequest(body: unknown): Parsed | string {
@@ -53,6 +54,9 @@ export function parseFacilitatorRequest(body: unknown): Parsed | string {
   if (!isHex(auth.nonce) || auth.nonce.length !== 66) return 'invalid_payload: authorization.nonce';
   const amount = (requirement as any).amount ?? (requirement as any).maxAmountRequired;
   if (!UINT.test(String(amount))) return 'invalid_payload: requirement amount';
+  if (BigInt(amount) <= 0n || BigInt(auth.value) <= 0n) return 'invalid_payload: amount must be positive';
+  // 65-byte r||s||v only (what x402-rs and the token's v,r,s entry point take)
+  if (signature.length !== 132) return 'invalid_payload: signature must be 65 bytes';
   return { requirement: { ...requirement, amount: String(amount) }, authorization: auth, signature };
 }
 
@@ -60,6 +64,8 @@ export interface LocalFacilitatorOptions {
   net: NetworkConfig;
   /** Pays the gas of every settle. */
   signer: LocalAccount;
+  /** Only settle payments to these addresses (our seller). Undefined = any payee. */
+  allowedPayTo?: Address[];
   /** Seconds a validBefore must still have left when we broadcast (x402-rs uses a few seconds). */
   expiryMarginSeconds?: number;
   now?: () => number;
@@ -72,6 +78,7 @@ export function createLocalFacilitator(opts: LocalFacilitatorOptions) {
   const pub = publicClientFor(net);
   const wallet = walletClientFor(net, signer);
   const inFlight = new Set<string>();
+  const allowed = opts.allowedPayTo ? new Set(opts.allowedPayTo.map((a) => getAddress(a))) : undefined;
 
   async function verify(body: unknown): Promise<VerifyResult & { parsed?: Parsed }> {
     const parsed = parseFacilitatorRequest(body);
@@ -87,9 +94,13 @@ export function createLocalFacilitator(opts: LocalFacilitatorOptions) {
     if (!isAddress(String(req.payTo), { strict: false }) || getAddress(auth.to) !== getAddress(req.payTo)) {
       return fail('invalid_exact_evm_payload_recipient_mismatch');
     }
+    if (allowed && !allowed.has(getAddress(req.payTo))) return fail('payee_not_allowed_on_this_facilitator');
     if (BigInt(auth.value) !== BigInt(req.amount)) return fail('invalid_exact_evm_payload_authorization_value');
     const now = nowSec();
-    if (BigInt(auth.validAfter) > now) return fail('invalid_exact_evm_payload_authorization_valid_after');
+    // the token wants block.timestamp > validAfter
+    if (BigInt(auth.validAfter) >= now) return fail('invalid_exact_evm_payload_authorization_valid_after');
+    // low-s only, like x402-rs and FiatToken: a high-s signature verifies off-chain and then reverts on-chain
+    if (BigInt(`0x${signature.slice(66, 130)}`) > SECP256K1_HALF_N) return fail('invalid_exact_evm_payload_signature_high_s');
     if (BigInt(auth.validBefore) < now + margin) return fail('invalid_exact_evm_payload_authorization_valid_before');
     const name = req.extra?.name ?? net.usdc.eip712.name;
     const version = req.extra?.version ?? net.usdc.eip712.version;
@@ -168,6 +179,16 @@ export function createLocalFacilitator(opts: LocalFacilitatorOptions) {
   }
 
   const app = new Hono();
+  // Server-to-server only: a browser request (it always carries Origin on POST and Sec-Fetch-Site; Node's fetch
+  // sends neither, though it does send sec-fetch-mode) or a non-JSON body is refused, so a web page cannot make
+  // this wallet broadcast transfers (CSRF with a text/plain "simple request").
+  app.use('*', async (c, next) => {
+    if (c.req.header('origin') || c.req.header('sec-fetch-site')) return c.json({ error: 'browser requests are not accepted' }, 403);
+    if (c.req.method === 'POST' && !(c.req.header('content-type') ?? '').toLowerCase().startsWith('application/json')) {
+      return c.json({ error: 'content-type must be application/json' }, 415);
+    }
+    await next();
+  });
   app.get('/health', (c) => c.json({ status: 'ok', kind: 'agentsettle-local-facilitator', network: net.caip2 }));
   app.get('/supported', (c) =>
     c.json({ kinds: [{ x402Version: 2, scheme: 'exact', network: net.caip2, extra: { tokens: [{ token: 'usdc', address: net.usdc.address, decimals: 6 }] } }] }),
@@ -177,9 +198,19 @@ export function createLocalFacilitator(opts: LocalFacilitatorOptions) {
     const { parsed: _p, ...result } = await verify(body);
     return c.json(result);
   });
+  // Like x402-rs: the same Idempotency-Key gets the original successful answer back (a lost response is not a new payment).
+  const answered = new Map<string, SettleResult>();
   app.post('/settle', async (c) => {
+    const key = c.req.header('idempotency-key');
+    const prior = key ? answered.get(key) : undefined;
+    if (prior) {
+      c.header('Idempotent-Replayed', 'true');
+      return c.json(prior);
+    }
     const body = await c.req.json().catch(() => undefined);
-    return c.json(await settle(body));
+    const result = await settle(body);
+    if (key && result.success) answered.set(key, result);
+    return c.json(result);
   });
   return { app, verify, settle, signer: signer.address };
 }

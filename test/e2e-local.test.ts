@@ -105,7 +105,7 @@ describe.skipIf(!canRun)('e2e on anvil', () => {
     expect(r.denied?.code).toBe('DAILY_CAP');
   });
 
-  it('a replayed X-PAYMENT is refused and writes no second receipt', async () => {
+  it('a retried X-PAYMENT gets the same delivery back (no second charge, no second receipt); reused for another task it is 409, never 402', async () => {
     const buyer = privateKeyToAccount(chain.keys.buyer);
     const url = `${sellerUrl}/task/translate?text=thanks`;
     const first = await fetch(url);
@@ -114,11 +114,26 @@ describe.skipIf(!canRun)('e2e on anvil', () => {
     const header = encodeHeader(await signExactPayment(buyer, chain.net, req, body.resource));
     const ok = await fetch(url, { headers: { 'X-PAYMENT': header } });
     expect(ok.status).toBe(200);
-    const before = (await listReceipts(chain.net)).length;
+    const okBody = await ok.json();
+    expect(okBody.replayed).toBe(false);
+    const balanceAfterFirst = await balance(buyer.address);
+    const receiptsBefore = (await listReceipts(chain.net)).length;
+
     const again = await fetch(url, { headers: { 'X-PAYMENT': header } });
-    expect(again.status).toBe(402);
-    expect((await again.json()).error).toMatch(/authorization_used|already|in_flight/);
-    expect((await listReceipts(chain.net)).length).toBe(before);
+    expect(again.status).toBe(200);
+    const againBody = await again.json();
+    expect(againBody.replayed).toBe(true);
+    expect(againBody.taskId).toBe(okBody.taskId);
+    expect(againBody.payment.settleTx).toBe(okBody.payment.settleTx);
+    expect(againBody.receipt.existing).toBe(true);
+    expect(againBody.receipt.tx).toBe(okBody.receipt.tx);
+
+    const otherTask = await fetch(`${sellerUrl}/task/translate?text=${encodeURIComponent('good morning')}`, { headers: { 'X-PAYMENT': header } });
+    expect(otherTask.status).toBe(409);
+    expect((await otherTask.json()).error).toMatch(/another task/);
+
+    expect(await balance(buyer.address)).toBe(balanceAfterFirst);
+    expect((await listReceipts(chain.net)).length).toBe(receiptsBefore);
   });
 
   it('refuses a payment signed for another price, payee or with a bad signature', async () => {

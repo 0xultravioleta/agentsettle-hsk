@@ -1,4 +1,4 @@
-import type { LocalAccount } from 'viem';
+import type { Address, LocalAccount } from 'viem';
 import { explorerTx, type NetworkConfig } from '../config.js';
 import { SpendDeniedError, fmtUsdc, type SpendGuard } from '../spend-guard.js';
 import {
@@ -6,8 +6,9 @@ import {
   PAYMENT_REQUIRED_HEADER,
   decodeHeader,
   encodeHeader,
+  buildAuthorization,
   selectRequirement,
-  signExactPayment,
+  signAuthorization,
   type ResourceInfo,
 } from '../rails/x402.js';
 import type { TaskResponse } from './seller.js';
@@ -49,13 +50,25 @@ export interface BuyerOptions {
   net: NetworkConfig;
   account: LocalAccount;
   guard: SpendGuard;
+  /** The agent we meant to hire: a 402 that names any other payee is refused (redirects, MITM, compromised URL). */
+  expectedPayTo?: Address;
   fetchImpl?: typeof fetch;
 }
 
 export async function hire(opts: BuyerOptions, url: string): Promise<HireResult> {
+  const steps: Step[] = [];
+  try {
+    return await hireInner(opts, url, steps);
+  } catch (err) {
+    // never throw at the caller: a hostile seller must not be able to crash the agent
+    steps.push({ step: 'error', at: new Date().toISOString(), title: err instanceof Error ? err.message.split('\n')[0]! : String(err) });
+    return { ok: false, steps };
+  }
+}
+
+async function hireInner(opts: BuyerOptions, url: string, steps: Step[]): Promise<HireResult> {
   const { net, account, guard } = opts;
   const f = opts.fetchImpl ?? fetch;
-  const steps: Step[] = [];
   const push = (step: StepName, title: string, detail?: Record<string, unknown>, link?: string) =>
     steps.push({ step, at: new Date().toISOString(), title, ...(detail ? { detail } : {}), ...(link ? { link } : {}) });
 
@@ -78,12 +91,15 @@ export async function hire(opts: BuyerOptions, url: string): Promise<HireResult>
 
   let requirement;
   try {
-    requirement = selectRequirement(body, net);
+    requirement = selectRequirement(body, net, { expectedPayTo: opts.expectedPayTo });
   } catch (err) {
     push('error', err instanceof Error ? err.message : String(err));
     return { ok: false, steps };
   }
   const amount = BigInt(requirement.amount);
+  const resource: ResourceInfo = body.resource ?? { url, description: '', mimeType: 'application/json' };
+  // everything that can fail is built BEFORE the spend is booked; after booking only the signature remains
+  const authorization = buildAuthorization(account.address, requirement);
 
   try {
     const d = guard.authorize(amount, url);
@@ -108,8 +124,7 @@ export async function hire(opts: BuyerOptions, url: string): Promise<HireResult>
     throw err;
   }
 
-  const resource: ResourceInfo = body.resource ?? { url, description: '', mimeType: 'application/json' };
-  const payment = await signExactPayment(account, net, requirement, resource);
+  const payment = await signAuthorization(account, net, requirement, resource, authorization);
   const a = payment.payload.authorization;
   push('signed', 'EIP-3009 authorization signed (no gas)', {
     from: a.from,
@@ -130,8 +145,14 @@ export async function hire(opts: BuyerOptions, url: string): Promise<HireResult>
   const response = (await paid.json()) as TaskResponse;
   push('settled', 'Facilitator settled on-chain', { tx: response.payment.settleTx, payer: response.payment.payer }, explorerTx(net, response.payment.settleTx));
   push('delivered', `Agent B delivered: "${response.result}"`, { resultHash: response.resultHash, taskId: response.taskId });
-  if (response.receipt && 'tx' in response.receipt) {
-    push('receipt', 'recordReceipt() on AgentSettleReceipts', { tx: response.receipt.tx, contract: response.receipt.contract, taskId: response.taskId }, explorerTx(net, response.receipt.tx));
+  if (response.receipt && 'contract' in response.receipt) {
+    const r = response.receipt;
+    push(
+      'receipt',
+      r.existing ? 'Receipt already on AgentSettleReceipts (this was a retry: no second charge)' : 'recordReceipt() on AgentSettleReceipts',
+      { tx: r.tx, contract: r.contract, taskId: response.taskId },
+      r.tx ? explorerTx(net, r.tx) : undefined,
+    );
   } else if (response.receipt && 'error' in response.receipt) {
     push('error', `receipt not written: ${response.receipt.error}`);
   }

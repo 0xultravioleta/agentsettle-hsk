@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { Hono } from 'hono';
+import { Hono, type Context, type Next } from 'hono';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { explorerAddress, PREMIUM_TASK_PRICE, TASK_PRICE } from './config.js';
 import { hire } from './agents/buyer.js';
@@ -16,11 +16,34 @@ const json = (v: unknown) => JSON.parse(JSON.stringify(v, (_k, x) => (typeof x =
  * One process for the demo: Agent B's paid routes (/task/*), the local facilitator when used (/facilitator/*),
  * the judge console API (/api/*) and the built UI (web/dist). Agent A still reaches Agent B over real HTTP.
  */
+/**
+ * /api/* spends the buyer's money, so only the console itself may call it: JSON bodies only (a cross-site
+ * text/plain "simple request" is refused), Origin / Sec-Fetch-Site must be this server or the Vite dev server,
+ * and the Host must be the one we serve (DNS rebinding).
+ */
+export function consoleGuard(publicUrl: string) {
+  const base = new URL(publicUrl);
+  const port = base.port || (base.protocol === 'https:' ? '443' : '80');
+  const origins = new Set([base.origin, `http://127.0.0.1:${port}`, `http://localhost:${port}`, 'http://127.0.0.1:5173', 'http://localhost:5173']);
+  const hosts = new Set([base.host, `127.0.0.1:${port}`, `localhost:${port}`, '127.0.0.1:5173', 'localhost:5173']);
+  return async (c: Context, next: Next) => {
+    const host = c.req.header('host') ?? '';
+    if (!hosts.has(host)) return c.json({ error: 'unexpected Host' }, 403);
+    const origin = c.req.header('origin');
+    if (origin !== undefined && !origins.has(origin)) return c.json({ error: 'cross-origin request refused' }, 403);
+    const site = c.req.header('sec-fetch-site');
+    if (site !== undefined && site !== 'same-origin' && site !== 'none') return c.json({ error: 'cross-site request refused' }, 403);
+    if (c.req.method !== 'GET' && !(c.req.header('content-type') ?? '').toLowerCase().startsWith('application/json')) {
+      return c.json({ error: 'content-type must be application/json' }, 415);
+    }
+    await next();
+  };
+}
+
 export function createApp(rt: Runtime, publicUrl: string): Hono {
   const app = new Hono();
-  const facilitatorBase = rt.localFacilitator ? `${publicUrl}/facilitator` : rt.facilitatorUrl!;
-  if (rt.localFacilitator) app.route('/facilitator', rt.localFacilitator.app);
-  app.route('/', createSeller({ net: rt.net, operator: rt.operator, facilitator: facilitatorClient(facilitatorBase), publicUrl, log: (m) => console.log(`[agent B] ${m}`) }));
+  app.route('/', createSeller({ net: rt.net, operator: rt.operator, facilitator: facilitatorClient(rt.facilitatorUrl), publicUrl, log: (m) => console.log(`[agent B] ${m}`) }));
+  app.use('/api/*', consoleGuard(publicUrl));
 
   app.get('/api/config', (c) =>
     c.json({
@@ -48,7 +71,7 @@ export function createApp(rt: Runtime, publicUrl: string): Hono {
     const body = (await c.req.json().catch(() => ({}))) as { text?: string; tier?: string };
     const text = String(body.text ?? '').trim().slice(0, MAX_TEXT_LENGTH) || 'Hello world';
     const tier = body.tier === 'premium' ? '&tier=premium' : '';
-    const result = await hire({ net: rt.net, account: rt.buyer, guard: rt.guard }, `${publicUrl}/task/translate?text=${encodeURIComponent(text)}${tier}`);
+    const result = await hire({ net: rt.net, account: rt.buyer, guard: rt.guard, expectedPayTo: rt.operator.address }, `${publicUrl}/task/translate?text=${encodeURIComponent(text)}${tier}`);
     return c.json(json(result));
   });
 

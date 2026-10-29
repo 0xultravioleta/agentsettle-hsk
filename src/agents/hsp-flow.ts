@@ -1,4 +1,5 @@
 import { explorerTx } from '../config.js';
+import { confirmTransfer } from '../chain.js';
 import { SpendDeniedError, fmtUsdc } from '../spend-guard.js';
 import { recordReceipt, resultHashOf, taskIdFor } from '../receipts.js';
 import type { Runtime } from '../runtime.js';
@@ -45,6 +46,12 @@ export async function hireViaHsp(rt: Runtime, text: string, opts: { amount?: big
   const verdict = await rt.hsp.verify(payment.paymentId);
   push('hsp_verify', `HSPVerifier (local, pinned adapter): ${verdict.outcomeClass}`, { required: verdict.requiredCapabilities, satisfied: verdict.satisfiedCapabilities }, payment.explorerUrl);
   if (!verdict.ok) return { ok: false, simulated: false, steps };
+  // ACCEPT is about the mandate the Coordinator stored; before delivering, check that the settlement tx really moved
+  // exactly this amount of our USDC from the buyer to Agent B (the receipt is written from these values).
+  if (!payment.txHash || !(await confirmTransfer(rt.net, payment.txHash, { from: rt.buyer.address, to: rt.operator.address, value: amount }))) {
+    push('error', `HSP settlement tx ${payment.txHash ?? '(none)'} does not show ${fmtUsdc(amount)} USDC from Agent A to Agent B on-chain: not delivering`);
+    return { ok: false, simulated: false, steps };
+  }
 
   const result = translateEnEs(text);
   push('delivered', `Agent B delivered: "${result}"`);

@@ -100,3 +100,32 @@ export async function listReceipts(net: NetworkConfig, opts: { fromBlock?: bigin
     .reverse()
     .slice(0, opts.limit ?? 20);
 }
+
+export interface ExistingReceipt {
+  payer: Address;
+  payee: Address;
+  amount: bigint;
+  settleTx: Hex;
+  resultHash: Hex;
+  at: bigint;
+  /** The recordReceipt tx, when its TaskSettled log is still in the scanned range. */
+  tx?: Hex;
+}
+
+/** The stored receipt for taskId, or undefined. */
+export async function readReceipt(net: NetworkConfig, taskId: Hex): Promise<ExistingReceipt | undefined> {
+  if (!net.receiptsAddress) return undefined;
+  const pub = publicClientFor(net);
+  const r = await pub.readContract({ address: net.receiptsAddress, abi: RECEIPTS_ABI, functionName: 'receipts', args: [taskId] });
+  if (r[7] === 0n) return undefined;
+  const latest = await pub.getBlockNumber();
+  const logs = await pub.getContractEvents({
+    address: net.receiptsAddress,
+    abi: RECEIPTS_ABI,
+    eventName: 'TaskSettled',
+    args: { taskId },
+    fromBlock: latest > 50_000n ? latest - 50_000n : 0n,
+    toBlock: latest,
+  });
+  return { payer: r[0], payee: r[1], amount: r[3], settleTx: r[4], resultHash: r[6], at: r[7], tx: logs[0]?.transactionHash };
+}

@@ -38,13 +38,13 @@ try {
 
   for (let i = 1; i <= args.runs; i++) {
     console.log(`\n[${i}/${args.runs}] x402: Agent A hires Agent B for 0.10 USDC`);
-    const r = await hire({ net: rt.net, account: rt.buyer, guard: rt.guard }, `${server.url}/task/translate?text=${encodeURIComponent(args.text)}`);
+    const r = await hire({ net: rt.net, account: rt.buyer, guard: rt.guard, expectedPayTo: rt.operator.address }, `${server.url}/task/translate?text=${encodeURIComponent(args.text)}`);
     print(r.steps);
     if (!r.ok) failures++;
   }
 
   console.log('\n[guardrail] Agent A is asked to pay 2.00 USDC for a premium task (per-tx cap 0.50)');
-  const denied = await hire({ net: rt.net, account: rt.buyer, guard: rt.guard }, `${server.url}/task/translate?text=hello&tier=premium`);
+  const denied = await hire({ net: rt.net, account: rt.buyer, guard: rt.guard, expectedPayTo: rt.operator.address }, `${server.url}/task/translate?text=hello&tier=premium`);
   print(denied.steps);
   if (denied.denied?.code !== 'PER_TX_CAP') failures++;
 
@@ -53,6 +53,7 @@ try {
   print(h.steps);
 } finally {
   server.close();
+  rt.close();
 }
 console.log(failures ? `\n${failures} step(s) failed` : '\ndone');
 process.exit(failures ? 1 : 0);

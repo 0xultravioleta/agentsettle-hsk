@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { USDC } from './config.js';
 
@@ -39,6 +39,8 @@ export interface SpendEntry {
 export interface SpendLedger {
   entries(day: string): SpendEntry[];
   append(day: string, entry: SpendEntry): void;
+  /** Runs check + book as one unit (FileLedger: under a lock file, across processes). */
+  atomically<T>(fn: () => T): T;
 }
 
 export class MemoryLedger implements SpendLedger {
@@ -49,7 +51,12 @@ export class MemoryLedger implements SpendLedger {
   append(day: string, entry: SpendEntry): void {
     this.days.set(day, [...(this.days.get(day) ?? []), entry]);
   }
+  atomically<T>(fn: () => T): T {
+    return fn();
+  }
 }
+
+const sleepSync = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 /** JSON file ledger (data/spend-ledger.json by default; scripts/reset.sh clears it). */
 export class FileLedger implements SpendLedger {
@@ -74,9 +81,44 @@ export class FileLedger implements SpendLedger {
     const all = this.read();
     all[day] = [...(all[day] ?? []), entry];
     mkdirSync(dirname(this.path), { recursive: true });
-    const tmp = `${this.path}.tmp`;
+    const tmp = `${this.path}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
     writeFileSync(tmp, `${JSON.stringify(all, null, 2)}\n`);
     renameSync(tmp, this.path);
+  }
+
+  /** `pnpm demo` and `pnpm start` may share this file: an O_EXCL lock file makes check + book one unit across them. */
+  atomically<T>(fn: () => T, opts: { waitMs?: number; staleMs?: number } = {}): T {
+    const lock = `${this.path}.lock`;
+    mkdirSync(dirname(this.path), { recursive: true });
+    const deadline = Date.now() + (opts.waitMs ?? 5_000);
+    for (;;) {
+      try {
+        closeSync(openSync(lock, 'wx'));
+        break;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+        try {
+          // a crashed holder leaves the file behind; a check + book takes milliseconds
+          if (Date.now() - statSync(lock).mtimeMs > (opts.staleMs ?? 10_000)) {
+            unlinkSync(lock);
+            continue;
+          }
+        } catch {
+          continue; // the holder released it between our two calls
+        }
+        if (Date.now() > deadline) throw new Error(`spend ledger is locked by another process: ${lock}`);
+        sleepSync(20);
+      }
+    }
+    try {
+      return fn();
+    } finally {
+      try {
+        unlinkSync(lock);
+      } catch {
+        /* already gone */
+      }
+    }
   }
 }
 
@@ -134,13 +176,15 @@ export class SpendGuard {
 
   /** Check and book in one synchronous step. Throws SpendDeniedError when the policy says no. */
   authorize(amount: bigint, ref: string): SpendDecision {
-    const decision = this.check(amount);
-    if (!decision.allowed) {
-      throw new SpendDeniedError(decision.code!, decision.reason!, amount, decision.spentToday);
-    }
-    const now = this.now();
-    this.ledger.append(utcDay(now), { at: now.toISOString(), amount: amount.toString(), ref });
-    return { ...decision, spentToday: decision.spentToday + amount, remainingToday: decision.remainingToday - amount };
+    return this.ledger.atomically(() => {
+      const decision = this.check(amount);
+      if (!decision.allowed) {
+        throw new SpendDeniedError(decision.code!, decision.reason!, amount, decision.spentToday);
+      }
+      const now = this.now();
+      this.ledger.append(utcDay(now), { at: now.toISOString(), amount: amount.toString(), ref });
+      return { ...decision, spentToday: decision.spentToday + amount, remainingToday: decision.remainingToday - amount };
+    });
   }
 }
 

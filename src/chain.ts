@@ -2,7 +2,11 @@ import {
   createPublicClient,
   createWalletClient,
   defineChain,
+  getAddress,
   http,
+  parseEventLogs,
+  type Address,
+  type Hex,
   type Chain,
   type LocalAccount,
   type PublicClient,
@@ -120,4 +124,75 @@ export function publicClientFor(net: NetworkConfig): PublicClient<Transport, Cha
 
 export function walletClientFor(net: NetworkConfig, account: LocalAccount): WalletClient<Transport, Chain, Account> {
   return createWalletClient({ chain: viemChain(net), transport: http(net.rpcUrl), account });
+}
+
+const AUTHORIZATION_USED_EVENT = {
+  type: 'event',
+  name: 'AuthorizationUsed',
+  inputs: [
+    { name: 'authorizer', type: 'address', indexed: true },
+    { name: 'nonce', type: 'bytes32', indexed: true },
+  ],
+} as const;
+
+const TRANSFER_EVENT = {
+  type: 'event',
+  name: 'Transfer',
+  inputs: [
+    { name: 'from', type: 'address', indexed: true },
+    { name: 'to', type: 'address', indexed: true },
+    { name: 'value', type: 'uint256', indexed: false },
+  ],
+} as const;
+
+export async function authorizationUsed(net: NetworkConfig, from: Address, nonce: Hex): Promise<boolean> {
+  return publicClientFor(net).readContract({ address: net.usdc.address, abi: ERC20_EIP3009_ABI, functionName: 'authorizationState', args: [from, nonce] });
+}
+
+/** The tx that consumed (from, nonce), from the token's AuthorizationUsed log (last ~50k blocks). */
+export async function findAuthorizationTx(net: NetworkConfig, from: Address, nonce: Hex): Promise<Hex | undefined> {
+  const pub = publicClientFor(net);
+  const latest = await pub.getBlockNumber();
+  const logs = await pub.getLogs({
+    address: net.usdc.address,
+    event: AUTHORIZATION_USED_EVENT,
+    args: { authorizer: from, nonce },
+    fromBlock: latest > 50_000n ? latest - 50_000n : 0n,
+    toBlock: latest,
+  });
+  return logs[0]?.transactionHash ?? undefined;
+}
+
+/**
+ * Did `tx` really move exactly `value` of the network's USDC from `from` to `to`? Read from the mined receipt, so a
+ * facilitator (or HSP coordinator) answer is never taken on its word before delivering or writing a receipt.
+ */
+export async function confirmTransfer(
+  net: NetworkConfig,
+  tx: Hex,
+  expect: { from: Address; to: Address; value: bigint; nonce?: Hex },
+  timeoutMs = 30_000,
+): Promise<boolean> {
+  try {
+    const receipt = await publicClientFor(net).waitForTransactionReceipt({ hash: tx, timeout: timeoutMs });
+    if (receipt.status !== 'success') return false;
+    if (expect.nonce) {
+      // bind the tx to THIS authorization: an older payment of the same amount by the same payer does not count
+      const used = parseEventLogs({ abi: [AUTHORIZATION_USED_EVENT], logs: receipt.logs, eventName: 'AuthorizationUsed' });
+      const ours = used.some(
+        (l) => getAddress(l.address) === getAddress(net.usdc.address) && getAddress(l.args.authorizer) === getAddress(expect.from) && l.args.nonce.toLowerCase() === expect.nonce!.toLowerCase(),
+      );
+      if (!ours) return false;
+    }
+    const transfers = parseEventLogs({ abi: [TRANSFER_EVENT], logs: receipt.logs, eventName: 'Transfer' });
+    return transfers.some(
+      (l) =>
+        getAddress(l.address) === getAddress(net.usdc.address) &&
+        getAddress(l.args.from) === getAddress(expect.from) &&
+        getAddress(l.args.to) === getAddress(expect.to) &&
+        l.args.value === expect.value,
+    );
+  } catch {
+    return false;
+  }
 }
