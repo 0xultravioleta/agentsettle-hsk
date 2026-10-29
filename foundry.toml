@@ -1,0 +1,14 @@
+[profile.default]
+src = "contracts"
+test = "contracts/test"
+script = "contracts/script"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.24"
+evm_version = "shanghai"
+optimizer = true
+optimizer_runs = 200
+
+[rpc_endpoints]
+hashkey = "${HASHKEY_RPC_URL}"
+hashkey_testnet = "${HASHKEY_TESTNET_RPC_URL}"
