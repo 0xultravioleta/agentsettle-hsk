@@ -90,3 +90,8 @@ th { color: var(--muted); font-weight: 500; }
   .top { padding: 14px 16px; }
   .netbox { align-items: flex-start; }
 }
+.howto { list-style: none; padding: 6px 2px; }
+.diagram { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
+.node { padding: 8px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--accent); font-weight: 600; text-align: center; }
+.node small { color: var(--muted); font-weight: 400; }
+.arrow { color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }

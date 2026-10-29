@@ -59,7 +59,14 @@ export async function hire(opts: BuyerOptions, url: string): Promise<HireResult>
   const push = (step: StepName, title: string, detail?: Record<string, unknown>, link?: string) =>
     steps.push({ step, at: new Date().toISOString(), title, ...(detail ? { detail } : {}), ...(link ? { link } : {}) });
 
-  push('request', `Agent A -> GET ${new URL(url).pathname}${new URL(url).search}`, { url });
+  const u = new URL(url);
+  let shown = `${u.pathname}${u.search}`;
+  try {
+    shown = decodeURIComponent(shown);
+  } catch {
+    /* keep it encoded */
+  }
+  push('request', `Agent A -> GET ${shown}`, { url });
   const first = await f(url);
   if (first.status !== 402) {
     push('error', `expected 402 Payment Required, got ${first.status}`, { body: await first.text() });

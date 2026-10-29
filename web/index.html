@@ -45,7 +45,19 @@
 
       <section class="card flow">
         <h2>Payment flow <small id="flow-title">press a button</small></h2>
-        <ol id="timeline" class="timeline"></ol>
+        <ol id="timeline" class="timeline">
+          <li class="howto">
+            <div class="diagram">
+              <span class="node">Agent A</span><span class="arrow">GET /task →</span><span class="node">Agent B</span>
+              <span class="arrow">← 402 · 0.10 USDC</span>
+              <span class="node">A signs EIP-3009<br /><small>no gas</small></span><span class="arrow">X-PAYMENT →</span>
+              <span class="node">x402 facilitator<br /><small>verify + settle</small></span><span class="arrow">→</span>
+              <span class="node">B delivers +<br />recordReceipt()</span>
+            </div>
+            <p class="small muted">Spend caps are checked before anything is signed. The same task can also be paid over HSP
+              (mandate → wallet settlement → HSPVerifier ACCEPT).</p>
+          </li>
+        </ol>
       </section>
 
       <section class="card receipts">

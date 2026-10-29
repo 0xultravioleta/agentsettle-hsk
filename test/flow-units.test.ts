@@ -54,7 +54,7 @@ describe('local facilitator request parsing', () => {
 
 describe('task', () => {
   it('translates known words, keeps case, leaves the rest', () => {
-    expect(translateEnEs('Hello world, agents pay agents!')).toBe('Hola mundo, agentes pagar agentes!');
+    expect(translateEnEs('Hello world, agents pay agents!')).toBe('Hola mundo, agentes pagan agentes!');
   });
   it('prices standard 0.10 and premium 2.00', () => {
     expect(priceFor(undefined)).toEqual({ tier: 'standard', amount: 100_000n });
