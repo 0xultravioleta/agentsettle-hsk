@@ -110,6 +110,8 @@ export async function createRuntime(name: NetworkName, opts: { facilitator?: Fac
 
   const net = getNetwork(name);
   assertMainnetAllowed(net);
+  // every approved mainnet payment ends in its receipt: nothing settles before the contract is deployed
+  if (net.mainnet && !net.receiptsAddress) throw new Error('set RECEIPTS_ADDRESS_MAINNET (scripts/deploy.sh hashkey) before paying on mainnet');
   const { operator, buyer } = agentAccounts(name);
   const names = keyEnvNames(name);
   if (!operator || !buyer) throw new Error(`set ${names.operator} and ${names.buyer} in .env for ${name}`);

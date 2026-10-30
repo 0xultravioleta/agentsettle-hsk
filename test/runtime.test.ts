@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getNetwork } from '../src/config.js';
-import { facilitatorReadiness, pickFacilitator, type Readiness } from '../src/runtime.js';
+import { createRuntime, facilitatorReadiness, pickFacilitator, type Readiness } from '../src/runtime.js';
 import { listen } from './helpers.js';
 
 /** The owner's condition for the mainnet runs: start only while /health/ready does not mark hashkey down. */
@@ -70,5 +70,24 @@ describe('pickFacilitator', () => {
     expect(pickFacilitator(testnet, 'auto', { url, supports: false, readiness: up })).toBe('local');
     expect(pickFacilitator(testnet, 'remote', { url, supports: true, readiness: down })).toBe('remote');
     expect(pickFacilitator(testnet, 'local', { url, supports: true, readiness: up })).toBe('local');
+  });
+});
+
+describe('mainnet needs the receipts contract before anything is paid', () => {
+  const names = ['MAINNET_OWNER_OK', 'RECEIPTS_ADDRESS_MAINNET', 'OPERATOR_PRIVATE_KEY', 'BUYER_PRIVATE_KEY'] as const;
+  const saved = Object.fromEntries(names.map((n) => [n, process.env[n]]));
+  afterAll(() => {
+    for (const n of names) saved[n] === undefined ? delete process.env[n] : (process.env[n] = saved[n]);
+  });
+
+  it('refuses without RECEIPTS_ADDRESS_MAINNET, before reading keys or calling the facilitator', async () => {
+    process.env.MAINNET_OWNER_OK = 'yes';
+    delete process.env.OPERATOR_PRIVATE_KEY;
+    delete process.env.BUYER_PRIVATE_KEY;
+    process.env.RECEIPTS_ADDRESS_MAINNET = '';
+    await expect(createRuntime('hashkey')).rejects.toThrow(/RECEIPTS_ADDRESS_MAINNET/);
+    // with the address set it gets past that check (and stops at the missing keys, still offline)
+    process.env.RECEIPTS_ADDRESS_MAINNET = '0x00000000000000000000000000000000000000aa';
+    await expect(createRuntime('hashkey')).rejects.toThrow(/OPERATOR_PRIVATE_KEY/);
   });
 });
