@@ -78,7 +78,7 @@ On HashKey testnet or mainnet, the same command prints Blockscout links for ever
 |---|---|---|
 | **HashKey Chain mainnet (177) and testnet (133)** | [`src/config.ts`](src/config.ts) | Chain IDs, RPCs and Blockscout links. Bridged USDC `0x054ed45810DbBAb8B27668922D110669c9D88D0a` with domain "Bridged USDC" v2 on mainnet. The HSP sandbox USDC `0x8FE3cB719Ee4410E236Cd6b72ab1fCDC06eF53c6` with domain "USD Coin" v2 on testnet. Both domains were re-checked against `DOMAIN_SEPARATOR()` on-chain. |
 | **USDC EIP-3009 on HashKey** | [`src/rails/x402.ts`](src/rails/x402.ts) | x402 v2 `exact` requirements; the buyer signs `TransferWithAuthorization` for chain 177/133. |
-| **x402 facilitator with HashKey support** | `UltravioletaDAO/x402-rs` ([PR_URL]) · [`src/agents/seller.ts`](src/agents/seller.ts) | The seller calls `/verify` and `/settle` through `uvd-x402-sdk`'s `FacilitatorClient` (network `eip155:177`). [`src/facilitator/local.ts`](src/facilitator/local.ts) is a local stand-in with the same wire format, used until production lists HashKey. |
+| **x402 facilitator with HashKey support** | `UltravioletaDAO/x402-rs` ([PR_URL]) · [`src/agents/seller.ts`](src/agents/seller.ts) | The seller calls `/verify` and `/settle` through `uvd-x402-sdk`'s `FacilitatorClient` (network `eip155:177`). [`src/facilitator/local.ts`](src/facilitator/local.ts) is a local stand-in with the same wire format. On testnet it is used while production does not list HashKey or reports it down. |
 | **On-chain receipts** | [`contracts/AgentSettleReceipts.sol`](contracts/AgentSettleReceipts.sol) | Mainnet: [CONTRACT_ADDRESS] (https://explorer.hsk.xyz/address/[CONTRACT_ADDRESS]). Testnet: [TESTNET_CONTRACT_ADDRESS]. |
 | **HSP SDK** | [`src/rails/hsp.ts`](src/rails/hsp.ts) · [`src/agents/hsp-flow.ts`](src/agents/hsp-flow.ts) | `HSPClient.pay()`, `payX402()` and `HSPVerifier.verify()` against the pinned adapter. ACCEPT means ship. The receipt carries the `hspPaymentId` (= mandateHash). Coordinator explorer: [HSP_EXPLORER_LINK]. |
 | **Spend guardrails (same shape as HSP SpendGuard)** | [`src/spend-guard.ts`](src/spend-guard.ts) | A per-tx cap of 0.50 USDC and a daily cap of 5 USDC. A spend is booked at signing time. |
@@ -93,7 +93,7 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 | x402 flow end to end (seller, SDK client, facilitator, EIP-3009 transfer, receipt) on a local chain | ✅ covered by `test/e2e-local.test.ts` and `test/guards-e2e.test.ts` |
 | Contract on HashKey testnet | ⏳ waiting for faucet HSK on the operator wallet |
 | x402 settle on HashKey testnet | ⏳ waiting for test USDC (`0x8FE3…`) on the buyer wallet |
-| Production facilitator with `hashkey` / `hashkey-testnet` | ⏳ in review in `x402-rs` (separate PR) |
+| Production facilitator with `hashkey` / `hashkey-testnet` | ✅ listed in `/supported` (2.52.0) and its `/verify` accepts our v2 payload on both chains · ⏳ it settles once its HashKey signer has gas (`/health/ready`) |
 | HSP sandbox (`pay`, `payX402`, `HSPVerifier`) | ⏳ code ready behind `src/rails/hsp.ts`; it runs as a labelled stub until the organizer shares the credentials and the SDK repo |
 | Mainnet deploy + settlements | ⏳ only after the owner approves the exact amounts ([docs/FUNDING.md](docs/FUNDING.md)) |
 | EAS attestation per receipt, ERC-8004 feedback | not built (P1/P2) |
@@ -115,7 +115,7 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 - **`taskId` is derived from the payment** (chain, payer, EIP-3009 nonce). A retried delivery therefore cannot write a second receipt: the contract reverts with `exists`.
 - **The console API (`/api/*`) only answers the console itself.** It requires a JSON body, a same-origin `Origin`/`Sec-Fetch-Site`, and our own `Host`, which stops DNS rebinding.
 - **The local facilitator** listens on its own loopback port. It refuses browser requests and settles only payments to our seller.
-- **Mainnet guard:** nothing runs on chain 177 unless `MAINNET_OWNER_OK=yes` is set. This includes `forge script` itself (`Deploy.s.sol`). On mainnet only the production facilitator settles.
+- **Mainnet guard:** nothing runs on chain 177 unless `MAINNET_OWNER_OK=yes` is set. This includes `forge script` itself (`Deploy.s.sol`). On mainnet only the production facilitator settles, and the run refuses to start while its `/health/ready` marks HashKey down.
 - **Keys** live only in `.env`, which is gitignored. They are never logged, never echoed in errors, and never returned by the API. `gitleaks` runs in CI on every commit.
 
 ## Built before vs. during the hackathon

@@ -40,7 +40,7 @@ async function serveLocalFacilitator(net: NetworkConfig, signer: LocalAccount, p
   });
 }
 
-/** Does the facilitator at `url` list this network? (production did not list HashKey on 2026-10-29) */
+/** Does the facilitator at `url` list this network? (production lists hashkey and hashkey-testnet since 2.52.0) */
 export async function facilitatorSupports(url: string, net: NetworkConfig): Promise<boolean> {
   try {
     const r = await fetch(`${url.replace(/\/+$/, '')}/supported`, { signal: AbortSignal.timeout(10_000) });
@@ -54,6 +54,44 @@ export async function facilitatorSupports(url: string, net: NetworkConfig): Prom
   } catch {
     return false;
   }
+}
+
+export interface Readiness {
+  ready: boolean;
+  reason: string;
+}
+
+/** Can the facilitator settle on this network right now? `/health/ready` marks a network `down` when, e.g., its signer has no gas. */
+export async function facilitatorReadiness(url: string, net: NetworkConfig): Promise<Readiness> {
+  try {
+    // a 503 still carries the per-network report: one network down makes the whole facilitator "down"
+    const r = await fetch(`${url.replace(/\/+$/, '')}/health/ready`, { signal: AbortSignal.timeout(10_000) });
+    const body: any = await r.json();
+    const entry = (Array.isArray(body?.networks) ? body.networks : []).find((n: any) =>
+      [n?.network, n?.caip2].map((x: unknown) => String(x).toLowerCase()).some((x) => x === net.caip2 || x === net.name),
+    );
+    if (!entry) return { ready: false, reason: `${net.caip2} is not in /health/ready` };
+    if (entry.status === 'down') return { ready: false, reason: `${net.caip2} is down (${entry.reason ?? 'no reason given'})` };
+    return { ready: true, reason: `${net.caip2} is ${entry.status}` };
+  } catch (err) {
+    return { ready: false, reason: `/health/ready unreadable: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+/**
+ * Who settles. Mainnet: production only, and only while /health/ready does not mark the network down (owner's
+ * condition for the mainnet runs). Testnet `auto`: production when it lists the network and is up, else the local double.
+ */
+export function pickFacilitator(net: NetworkConfig, mode: FacilitatorMode, remote: { url: string; supports: boolean; readiness: Readiness }): 'remote' | 'local' {
+  if (net.mainnet) {
+    if (mode === 'local' || !remote.supports) {
+      throw new Error(`on mainnet only ${PRODUCTION_FACILITATOR} settles (W1 pays gas), and ${remote.url} must list ${net.caip2}`);
+    }
+    if (!remote.readiness.ready) throw new Error(`production facilitator not ready: ${remote.readiness.reason}; wait until /health/ready stops marking it down`);
+    return 'remote';
+  }
+  if (mode === 'auto') return remote.supports && remote.readiness.ready ? 'remote' : 'local';
+  return mode;
 }
 
 export async function createRuntime(name: NetworkName, opts: { facilitator?: FacilitatorMode; root?: string } = {}): Promise<Runtime> {
@@ -81,14 +119,13 @@ export async function createRuntime(name: NetworkName, opts: { facilitator?: Fac
     throw new Error(`on mainnet only ${PRODUCTION_FACILITATOR} settles; FACILITATOR_URL is ${remote}`);
   }
 
-  const useLocal = mode === 'local' || (mode === 'auto' && !(await facilitatorSupports(remote, net)));
-  if (useLocal) {
-    if (net.mainnet) {
-      throw new Error(`the facilitator at ${remote} does not list ${net.caip2}; on mainnet only the production facilitator settles (W1 pays gas)`);
-    }
+  const supports = mode !== 'local' && (await facilitatorSupports(remote, net));
+  const readiness = supports ? await facilitatorReadiness(remote, net) : { ready: false, reason: `${remote} does not list ${net.caip2}` };
+  if (pickFacilitator(net, mode, { url: remote, supports, readiness }) === 'local') {
     const signer = accountFromEnv('LOCAL_FACILITATOR_PRIVATE_KEY') ?? operator;
     const fac = await serveLocalFacilitator(net, signer, operator.address);
-    return { net, operator, buyer, guard, hsp, facilitatorUrl: fac.url, facilitatorLabel: `local dev facilitator (gas: ${signer.address})`, close: fac.close };
+    const why = mode === 'auto' ? `; production: ${readiness.reason}` : '';
+    return { net, operator, buyer, guard, hsp, facilitatorUrl: fac.url, facilitatorLabel: `local dev facilitator (gas: ${signer.address}${why})`, close: fac.close };
   }
   return { net, operator, buyer, guard, hsp, facilitatorUrl: remote, facilitatorLabel: remote, close: () => {} };
 }
