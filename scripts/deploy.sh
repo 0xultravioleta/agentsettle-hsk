@@ -8,7 +8,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 NET="${1:-}"
 [[ -f .env ]] || { echo "no .env (cp .env.example .env and fill it)" >&2; exit 1; }
+CALLER_OWNER_OK="${MAINNET_OWNER_OK:-}"
 set -a; . ./.env; set +a
+# the caller's MAINNET_OWNER_OK wins over the (normally empty) line in .env, here and in Deploy.s.sol's own guard
+[[ -z "$CALLER_OWNER_OK" ]] || export MAINNET_OWNER_OK="$CALLER_OWNER_OK"
 
 case "$NET" in
   hashkey-testnet)
