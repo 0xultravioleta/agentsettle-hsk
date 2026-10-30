@@ -36,7 +36,7 @@ Category: Infrastructure / Payments. Domains: AI agents, payments, stablecoins, 
 GitHub: [REPO_URL]
 Demo video: [YOUTUBE_URL]
 Deck: [DECK_URL]
-Facilitator PR: [PR_URL]
+Facilitator PR: https://github.com/UltravioletaDAO/x402-rs/pull/132
 ```
 
 ### Description (markdown)
@@ -90,7 +90,7 @@ Agent Payments & A2A Settlement
 | `[CONTRACT_ADDRESS]` | mainnet deploy of `AgentSettleReceipts` (after the owner's OK); also in README.md |
 | `[TESTNET_CONTRACT_ADDRESS]` | testnet deploy (after faucet HSK reaches W5) |
 | `[REPO_URL]` | after the owner approves making the repo public |
-| `[PR_URL]` | the x402-rs HashKey PR |
+| ~~`[PR_URL]`~~ | filled: https://github.com/UltravioletaDAO/x402-rs/pull/132 (merged, live in 2.52.0) |
 | `[YOUTUBE_URL]`, `[DECK_URL]`, `[LOGO]` | after recording and upload |
 | `[HSP_EXPLORER_LINK]` | `<COORDINATOR_URL>/explorer` once the sandbox credentials arrive |
 | `[TX_LINKS on explorer.hsk.xyz]`, `[LAST_COMMIT]` | after the mainnet run |

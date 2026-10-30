@@ -4,7 +4,7 @@
 > x402 facilitator, HSP as the second settlement rail, and one on-chain receipt per paid task.
 
 **Built for the HashKey Chain Horizon Hackathon (Mumbai), track: Agent Payments & A2A Settlement.**
-Demo video: [YOUTUBE_URL] · Contract (HashKey Chain mainnet): [CONTRACT_ADDRESS] · Facilitator PR: [PR_URL]
+Demo video: [YOUTUBE_URL] · Contract (HashKey Chain mainnet): [CONTRACT_ADDRESS] · Facilitator PR: [x402-rs#132](https://github.com/UltravioletaDAO/x402-rs/pull/132)
 
 ## The problem
 
@@ -78,7 +78,7 @@ On HashKey testnet or mainnet, the same command prints Blockscout links for ever
 |---|---|---|
 | **HashKey Chain mainnet (177) and testnet (133)** | [`src/config.ts`](src/config.ts) | Chain IDs, RPCs and Blockscout links. Bridged USDC `0x054ed45810DbBAb8B27668922D110669c9D88D0a` with domain "Bridged USDC" v2 on mainnet. The HSP sandbox USDC `0x8FE3cB719Ee4410E236Cd6b72ab1fCDC06eF53c6` with domain "USD Coin" v2 on testnet. Both domains were re-checked against `DOMAIN_SEPARATOR()` on-chain. |
 | **USDC EIP-3009 on HashKey** | [`src/rails/x402.ts`](src/rails/x402.ts) | x402 v2 `exact` requirements; the buyer signs `TransferWithAuthorization` for chain 177/133. |
-| **x402 facilitator with HashKey support** | `UltravioletaDAO/x402-rs` ([PR_URL]) · [`src/agents/seller.ts`](src/agents/seller.ts) | The seller calls `/verify` and `/settle` through `uvd-x402-sdk`'s `FacilitatorClient` (network `eip155:177`). [`src/facilitator/local.ts`](src/facilitator/local.ts) is a local stand-in with the same wire format. On testnet it is used while production does not list HashKey or reports it down. |
+| **x402 facilitator with HashKey support** | `UltravioletaDAO/x402-rs` ([#132](https://github.com/UltravioletaDAO/x402-rs/pull/132), merged) · [`src/agents/seller.ts`](src/agents/seller.ts) | The seller calls `/verify` and `/settle` through `uvd-x402-sdk`'s `FacilitatorClient` (network `eip155:177`). [`src/facilitator/local.ts`](src/facilitator/local.ts) is a local stand-in with the same wire format. On testnet it is used while production does not list HashKey or reports it down. |
 | **On-chain receipts** | [`contracts/AgentSettleReceipts.sol`](contracts/AgentSettleReceipts.sol) | Mainnet: [CONTRACT_ADDRESS] (https://explorer.hsk.xyz/address/[CONTRACT_ADDRESS]). Testnet: [TESTNET_CONTRACT_ADDRESS]. |
 | **HSP SDK** | [`src/rails/hsp.ts`](src/rails/hsp.ts) · [`src/agents/hsp-flow.ts`](src/agents/hsp-flow.ts) | `HSPClient.pay()`, `payX402()` and `HSPVerifier.verify()` against the pinned adapter. ACCEPT means ship. The receipt carries the `hspPaymentId` (= mandateHash). Coordinator explorer: [HSP_EXPLORER_LINK]. |
 | **Spend guardrails (same shape as HSP SpendGuard)** | [`src/spend-guard.ts`](src/spend-guard.ts) | A per-tx cap of 0.50 USDC and a daily cap of 5 USDC. A spend is booked at signing time. |
@@ -121,7 +121,7 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 ## Built before vs. during the hackathon
 
 - **Existed before. We use these through their public interfaces only:**
-  - Ultravioleta's open-source x402 facilitator ([x402-rs](https://github.com/UltravioletaDAO/x402-rs)). Its HashKey support is a hackathon PR in that repo.
+  - Ultravioleta's open-source x402 facilitator ([x402-rs](https://github.com/UltravioletaDAO/x402-rs)). Its HashKey support is a hackathon PR in that repo ([#132](https://github.com/UltravioletaDAO/x402-rs/pull/132), merged on 2026-10-30, live in 2.52.0).
   - The TypeScript SDK [`uvd-x402-sdk`](https://www.npmjs.com/package/uvd-x402-sdk).
   - HashKey's HSP SDK, from the organizer.
   - Foundry and forge-std.

@@ -19,7 +19,7 @@ Agent A ──GET /task──▶ Agent B ──402 (USDC, eip155:177)──▶ A
 ```
 
 ## How we use HashKey Chain mainnet + HSP SDK
-- **HashKey Chain mainnet (177):** facilitator network `hashkey` in `UltravioletaDAO/x402-rs` ([PR_URL]: `src/network.rs`, `config/supported_tokens.json`); USDC `0x054ed45810DbBAb8B27668922D110669c9D88D0a` (EIP-712 "Bridged USDC" v2). Settlement txs: [TX_LINKS on explorer.hsk.xyz].
+- **HashKey Chain mainnet (177):** facilitator network `hashkey` in `UltravioletaDAO/x402-rs` ([#132](https://github.com/UltravioletaDAO/x402-rs/pull/132): `src/network.rs`, `config/supported_tokens.json`); USDC `0x054ed45810DbBAb8B27668922D110669c9D88D0a` (EIP-712 "Bridged USDC" v2). Settlement txs: [TX_LINKS on explorer.hsk.xyz].
 - **Contract:** `contracts/AgentSettleReceipts.sol`, deployed and verified at [CONTRACT_ADDRESS] (https://explorer.hsk.xyz/address/[CONTRACT_ADDRESS]).
 - **HSP SDK:** `src/rails/hsp.ts` calls `HSPClient.pay()`, `payX402()` and `HSPVerifier.verify()` against the HSP sandbox on hashkey-testnet (USDC `0x8FE3cB719Ee4410E236Cd6b72ab1fCDC06eF53c6`). Coordinator explorer: [HSP_EXPLORER_LINK].
 - **x402:** `src/rails/x402.ts` (uvd-x402-sdk-typescript → facilitator.ultravioletadao.xyz, network `eip155:177`).

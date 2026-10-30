@@ -28,7 +28,7 @@ Category: Infrastructure / Payments. Domains: AI agents, payments, stablecoins, 
 GitHub: [REPO_URL]
 Demo video: [YOUTUBE_URL]
 Deck: [DECK_URL]
-Facilitator PR: [PR_URL]
+Facilitator PR: https://github.com/UltravioletaDAO/x402-rs/pull/132
 ```
 ### Description (markdown) · 2095 chars
 ```markdown
