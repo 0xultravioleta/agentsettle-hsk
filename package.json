@@ -18,6 +18,7 @@
     "start": "tsx src/cli/serve.ts",
     "demo": "tsx src/cli/demo.ts",
     "facilitator:local": "tsx src/cli/facilitator.ts",
+    "hsp:keygen": "tsx src/cli/hsp-keygen.ts",
     "web:dev": "vite web",
     "web:build": "vite build web"
   },
