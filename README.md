@@ -28,7 +28,11 @@ On top of that, an autonomous buyer needs **guardrails**, so a bug or a maliciou
 4. A retries with the `X-PAYMENT` header.
 5. B sends the payment to the **x402 facilitator** (`/verify`, then `/settle`). The facilitator broadcasts the transfer on HashKey Chain and pays the gas.
 6. B delivers the result and writes **`AgentSettleReceipts.recordReceipt(taskId, payer, payee, token, amount, settleTx, hspPaymentId, keccak256(result))`**.
-7. **HSP rail:** the same task is paid through HashKey's **HSP SDK** on testnet. The flow is `pay()`, then `awaitSettled()`, then `HSPVerifier.verify()` returning **ACCEPT**. The receipt then carries the `hspPaymentId`.
+7. **HSP rail:** the same task is paid through **HSP**, the HashKey Merchant API, on testnet.
+   - B creates a one-time **cart mandate**: HMAC-SHA256 signed request, ES256K merchant JWT over the cart hash.
+   - The payer pays it at the gateway's checkout (`payment_url`).
+   - B reads the payment record and checks it against the order (payee, token, chain, amount), then checks the transfer on-chain.
+   - Only then does B deliver. The receipt carries the HSP `payment_request_id` as `hspPaymentId`.
 8. When A is asked for 2 USDC, the per-transaction cap **refuses before anything is signed**. This is shown in the demo.
 
 ```mermaid
@@ -61,7 +65,7 @@ scripts/demo.sh            # local chain: anvil + an EIP-3009 USDC mock with the
 
 | Do | See |
 |---|---|
-| `scripts/demo.sh` | It runs this sequence: 402 → spend check → EIP-3009 signed → facilitator settles → `Hola mundo, agentes pagan agentes` delivered → `recordReceipt` tx. Then it shows the 2 USDC task **denied** and the HSP rail (marked SIMULATED until the sandbox credentials arrive). |
+| `scripts/demo.sh` | It runs this sequence: 402 → spend check → EIP-3009 signed → facilitator settles → `Hola mundo, agentes pagan agentes` delivered → `recordReceipt` tx. Then it shows the 2 USDC task **denied** and the HSP rail (marked SIMULATED until the HashKey Merchant credentials are in SSM). |
 | `scripts/demo.sh --ui`, then open http://127.0.0.1:8402 | The judge console opens, with receipts seeded from the run. |
 | Click **Hire Agent B · 0.10 USDC** | The flow animates: the 402 body, the signature with "gas paid by buyer: 0", the settle tx, and the receipt tx. A new row appears in **On-chain receipts**. |
 | Click **Premium task · 2.00 USDC** | "Spend policy DENIED: 2.00 USDC is over the per-transaction cap of 0.50 USDC". Nothing was signed. |
@@ -80,7 +84,7 @@ On HashKey testnet or mainnet, the same command prints Blockscout links for ever
 | **USDC EIP-3009 on HashKey** | [`src/rails/x402.ts`](src/rails/x402.ts) | x402 v2 `exact` requirements; the buyer signs `TransferWithAuthorization` for chain 177/133. |
 | **x402 facilitator with HashKey support** | `UltravioletaDAO/x402-rs` ([#132](https://github.com/UltravioletaDAO/x402-rs/pull/132), merged) · [`src/agents/seller.ts`](src/agents/seller.ts) | The seller calls `/verify` and `/settle` through `uvd-x402-sdk`'s `FacilitatorClient` (network `eip155:177`). [`src/facilitator/local.ts`](src/facilitator/local.ts) is a local stand-in with the same wire format. On testnet it is used while production does not list HashKey or reports it down. |
 | **On-chain receipts** | [`contracts/AgentSettleReceipts.sol`](contracts/AgentSettleReceipts.sol) | Mainnet: [CONTRACT_ADDRESS] (https://explorer.hsk.xyz/address/[CONTRACT_ADDRESS]). Testnet: [TESTNET_CONTRACT_ADDRESS]. |
-| **HSP SDK** | [`src/rails/hsp.ts`](src/rails/hsp.ts) · [`src/agents/hsp-flow.ts`](src/agents/hsp-flow.ts) | `HSPClient.pay()`, `payX402()` and `HSPVerifier.verify()` against the pinned adapter. ACCEPT means ship. The receipt carries the `hspPaymentId` (= mandateHash). Coordinator explorer: [HSP_EXPLORER_LINK]. |
+| **HSP (HashKey Merchant API)** | [`src/rails/hsp-merchant.ts`](src/rails/hsp-merchant.ts) · [`src/rails/hsp.ts`](src/rails/hsp.ts) · [`src/agents/hsp-flow.ts`](src/agents/hsp-flow.ts) | One-time cart mandates on the QA gateway (`hashkey-testnet`, USDC): HMAC-SHA256 request signing, the ES256K `merchant_authorization` JWT over the canonical cart hash, payment queries and signed webhooks (`/hsp/webhook`). The merchant key and the app credentials live in AWS SSM, never in the repo ([docs/hsp/REGISTRATION.md](docs/hsp/REGISTRATION.md)). The receipt carries the `payment_request_id`. |
 | **Spend guardrails (same shape as HSP SpendGuard)** | [`src/spend-guard.ts`](src/spend-guard.ts) | A per-tx cap of 0.50 USDC and a daily cap of 5 USDC. A spend is booked at signing time. |
 
 Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
@@ -94,7 +98,7 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 | Contract on HashKey testnet | ⏳ waiting for faucet HSK on the operator wallet |
 | x402 settle on HashKey testnet | ⏳ waiting for test USDC (`0x8FE3…`) on the buyer wallet |
 | Production facilitator with `hashkey` / `hashkey-testnet` | ✅ listed in `/supported` (2.52.0) and its `/verify` accepts our v2 payload on both chains · ⏳ it settles once its HashKey signer has gas (`/health/ready`) |
-| HSP sandbox (`pay`, `payX402`, `HSPVerifier`) | ⏳ code ready behind `src/rails/hsp.ts`; it runs as a labelled stub until the organizer shares the credentials and the SDK repo |
+| HSP on the HashKey Merchant QA gateway | ✅ adapter built and tested against the docs' recorded examples and an anvil e2e (`test/hsp-merchant*.test.ts`) · ✅ merchant key in SSM, registration data ready · ⏳ app_key/app_secret after registration, and the QA IP allowlist; until then the rail is a labelled stub |
 | Mainnet deploy + settlements | ⏳ only after the owner approves the exact amounts ([docs/FUNDING.md](docs/FUNDING.md)) |
 | EAS attestation per receipt, ERC-8004 feedback | not built (P1/P2) |
 
@@ -123,7 +127,7 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 - **Existed before. We use these through their public interfaces only:**
   - Ultravioleta's open-source x402 facilitator ([x402-rs](https://github.com/UltravioletaDAO/x402-rs)). Its HashKey support is a hackathon PR in that repo ([#132](https://github.com/UltravioletaDAO/x402-rs/pull/132), merged on 2026-10-30, live in 2.52.0).
   - The TypeScript SDK [`uvd-x402-sdk`](https://www.npmjs.com/package/uvd-x402-sdk).
-  - HashKey's HSP SDK, from the organizer.
+  - HashKey's HSP (HashKey Merchant) API, used through its public docs.
   - Foundry and forge-std.
 - **Built during the hackathon (Oct 29 – Nov 1, 2026):** everything in this repository. Commit range: `cac5ebf`…[LAST_COMMIT].
 
@@ -135,6 +139,8 @@ src/agents/buyer.ts                    Agent A: caps -> sign EIP-3009 -> X-PAYME
 src/agents/seller.ts                   Agent B: 402 -> verify/settle -> task -> recordReceipt
 src/agents/hsp-flow.ts                 the same task over HSP
 src/rails/x402.ts · src/rails/hsp.ts   the two payment rails
+src/rails/hsp-merchant.ts              HashKey Merchant API: HMAC signing, ES256K cart JWT, payments, webhooks
+src/hsp-secrets.ts · src/cli/hsp-keygen.ts   HSP secrets in AWS SSM; merchant key pair (`pnpm hsp:keygen`)
 src/facilitator/local.ts               local x402 facilitator (same wire format as x402-rs)
 src/receipts.ts                        recordReceipt + receipt listing
 src/spend-guard.ts                     per-tx and daily caps
@@ -142,6 +148,7 @@ src/app.ts · src/cli/*                 demo server, `pnpm demo`, `pnpm start`
 web/                                   judge console (Vite)
 scripts/demo.sh · scripts/reset.sh     one-command demo, clean slate
 docs/WALLETS.md · docs/FUNDING.md      public addresses; mainnet funding route with exact amounts
+docs/hsp/                              HSP registration data and the merchant public key
 ```
 
 ## Tests
@@ -150,7 +157,8 @@ docs/WALLETS.md · docs/FUNDING.md      public addresses; mainnet funding route 
 forge test                        # contract: operator-only (with fuzz), no duplicate taskId, event, storage; deploy guard
 pnpm install && pnpm test         # unit + end-to-end on anvil: payment, receipt fields, caps, retries and replays,
                                   # forged signature, tampered price, broke buyer, every facilitator guard, concurrent
-                                  # settle, lost settle response, lying facilitator, cross-site requests, HSP checks
+                                  # settle, lost settle response, lying facilitator, cross-site requests; HSP: the docs'
+                                  # recorded examples, a fake gateway that re-checks HMAC/JWT/cart_hash, lying records
 bash scripts/ci/preflight.sh      # exactly what CI runs (Node 20, pnpm 10, Foundry, gitleaks)
 ```
 
