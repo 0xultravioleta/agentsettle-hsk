@@ -7,13 +7,11 @@ import { getAddress, keccak256, toHex, type Hex } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { consoleGuard } from '../src/app.js';
 import { hire } from '../src/agents/buyer.js';
-import { hireViaHsp } from '../src/agents/hsp-flow.js';
 import { createSeller, facilitatorClient, type Facilitator } from '../src/agents/seller.js';
 import { ERC20_EIP3009_ABI, publicClientFor, walletClientFor } from '../src/chain.js';
 import { getNetwork } from '../src/config.js';
 import { createLocalFacilitator } from '../src/facilitator/local.js';
 import { ensureLocalChain, type LocalChain } from '../src/local-chain.js';
-import { SdkHspRail } from '../src/rails/hsp.js';
 import { buildPaymentRequired, encodeHeader, selectRequirement, signExactPayment, type PaymentRequirement } from '../src/rails/x402.js';
 import { listReceipts, readReceipt } from '../src/receipts.js';
 import type { Runtime } from '../src/runtime.js';
@@ -228,43 +226,7 @@ describe.skipIf(!canRun)('on anvil', () => {
     expect(await balance(operator().address)).toBe(before);
   });
 
-  describe('P2-4: HSP SDK mode delivers only when the settlement tx shows the exact amount to Agent B', () => {
-    let coordinator: { url: string; close: () => Promise<void> };
-    beforeAll(async () => {
-      const app = new Hono();
-      app.get('/payments/:id', (c) => c.json({ mandate: {}, receipt: {}, attestations: [] }));
-      coordinator = await listen(app);
-    });
-    afterAll(() => coordinator.close());
-
-    const runtimeWith = (sentAmount: bigint): Runtime => {
-      const client = {
-        pay: async ({ to }: { to: `0x${string}`; amount: bigint }) => {
-          const w = walletClientFor(chain.net, buyer());
-          const txHash = await w.writeContract({ address: chain.net.usdc.address, abi: ERC20_EIP3009_ABI, functionName: 'transfer', args: [to, sentAmount] });
-          await publicClientFor(chain.net).waitForTransactionReceipt({ hash: txHash });
-          return { paymentId: keccak256(toHex(txHash)), txHash, status: 'SETTLED' };
-        },
-      };
-      const verifier = { verify: async () => ({ ok: true, outcomeClass: 'ACCEPT', requiredCapabilities: [], satisfiedCapabilities: [] }) };
-      const hsp = new SdkHspRail({ coordinatorUrl: coordinator.url, apiKey: 'test' }, client, verifier);
-      return { net: chain.net, operator: operator(), buyer: buyer(), guard: new SpendGuard(), hsp, facilitatorUrl: '', facilitatorLabel: '', close: () => {} };
-    };
-
-    it('exact transfer: ACCEPT -> delivered -> receipt with the hspPaymentId', async () => {
-      const r = await hireViaHsp(runtimeWith(100_000n), 'hello');
-      expect(r.ok, JSON.stringify(r.steps)).toBe(true);
-      expect(r.steps.map((s) => s.step)).toEqual(['hsp_pay', 'hsp_verify', 'delivered', 'receipt']);
-    });
-
-    it('a short transfer behind an ACCEPT is not delivered and writes no receipt', async () => {
-      const before = (await listReceipts(chain.net)).length;
-      const r = await hireViaHsp(runtimeWith(99_999n), 'hello');
-      expect(r.ok).toBe(false);
-      expect(r.steps.at(-1)!.title).toMatch(/does not show 0.10 USDC/);
-      expect((await listReceipts(chain.net)).length).toBe(before);
-    });
-  });
+  // P2-4 (HSP delivers only on the exact on-chain transfer) moved to test/hsp-merchant-e2e.test.ts with the HashKey Merchant rail.
 });
 
 describe('P3-5: the file ledger locks check + book across processes', () => {

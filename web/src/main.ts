@@ -29,7 +29,7 @@ let cfg: Config;
 
 const ICON: Record<string, string> = {
   request: '→', payment_required: '402', spend_check: '✓', spend_denied: '✕', signed: '✍', paid_request: '↻',
-  settled: '⛓', delivered: '📦', receipt: '🧾', hsp_pay: 'HSP', hsp_verify: '⚖', error: '!',
+  settled: '⛓', delivered: '📦', receipt: '🧾', hsp_order: 'HSP', hsp_payment: '⛓', error: '!',
 };
 
 function link(href: string | null | undefined, text: string): string {
@@ -50,16 +50,17 @@ function detailHtml(s: Step): string {
   if (s.step === 'signed') return `<div class="kv">from ${esc(short(String(d.from)))} → to ${esc(short(String(d.to)))} · value ${esc(String(d.value))} · nonce ${esc(short(String(d.nonce)))} · <b>gas paid by buyer: 0</b></div>`;
   if (s.step === 'spend_denied') return `<div class="kv deny">per-tx cap ${esc(String(d.perTxCap ?? ''))} · daily cap ${esc(String(d.dailyCap ?? ''))} · nothing was signed</div>`;
   if (s.step === 'spend_check') return `<div class="kv">spent today ${esc(String(d.spentToday))} / ${esc(String(d.dailyCap))} USDC</div>`;
+  if (s.step === 'hsp_order' && typeof d.paymentUrl === 'string') return `<div class="kv">${link(d.paymentUrl, 'open the HashKey Merchant checkout')} · pay with Agent A's wallet</div>`;
   const tx = typeof d.tx === 'string' ? d.tx : undefined;
   if (tx) return `<div class="kv mono">${s.link ? link(s.link, tx) : esc(tx)}</div>`;
   if (s.link) return `<div class="kv">${link(s.link, s.link)}</div>`;
   return '';
 }
 
-async function animate(steps: Step[], title: string) {
+async function animate(steps: Step[], title: string, append = false) {
   $('flow-title').textContent = title;
   const ol = $('timeline');
-  ol.innerHTML = '';
+  if (!append) ol.innerHTML = '';
   for (const s of steps) {
     const li = document.createElement('li');
     const cls = s.step === 'spend_denied' || s.step === 'error' ? 'bad' : s.step.startsWith('hsp') && /SIMULATED/.test(s.title) ? 'sim' : 'ok';
@@ -88,7 +89,7 @@ async function loadConfig() {
   $('cap-tx').textContent = cfg.caps.perTx;
   $('cap-day').textContent = cfg.caps.daily;
   $('facilitator').textContent = cfg.facilitator;
-  $('hsp-mode').innerHTML = cfg.hsp.mode === 'sdk' ? '<b>live sandbox</b>' : `<span class="sim-tag">SIMULATED</span> ${esc(cfg.hsp.reason ?? '')}`;
+  $('hsp-mode').innerHTML = cfg.hsp.mode === 'merchant' ? '<b>HashKey Merchant QA gateway</b>' : `<span class="sim-tag">SIMULATED</span> ${esc(cfg.hsp.reason ?? '')}`;
   updateCaps(cfg.caps.spentToday);
 }
 
@@ -125,6 +126,15 @@ async function run(path: string, payload: Record<string, unknown>, title: string
   try {
     const r = await (await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })).json();
     await animate(r.steps ?? [], title);
+    // an HSP job keeps running until the checkout is paid (or it times out): follow it
+    let shown = (r.steps ?? []).length;
+    while (r.id && r.done === false) {
+      await new Promise((res) => setTimeout(res, 2500));
+      const j = await (await fetch(`/api/hsp/${encodeURIComponent(r.id)}`)).json();
+      await animate((j.steps ?? []).slice(shown), title, true);
+      shown = (j.steps ?? []).length;
+      r.done = j.done !== false;
+    }
   } catch (e) {
     await animate([{ step: 'error', title: String(e), at: '' }], title);
   } finally {

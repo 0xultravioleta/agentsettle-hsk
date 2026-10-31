@@ -13,7 +13,7 @@ import { ERC20_EIP3009_ABI, publicClientFor, walletClientFor } from '../src/chai
 import { getNetwork } from '../src/config.js';
 import { createLocalFacilitator } from '../src/facilitator/local.js';
 import { ensureLocalChain, type LocalChain } from '../src/local-chain.js';
-import { SdkHspRail, StubHspRail } from '../src/rails/hsp.js';
+import { StubHspRail } from '../src/rails/hsp.js';
 import { buildPaymentRequired, encodeHeader, signExactPayment } from '../src/rails/x402.js';
 import { listReceipts, readReceipt, resultHashOf } from '../src/receipts.js';
 import type { Runtime } from '../src/runtime.js';
@@ -219,19 +219,5 @@ describe.skipIf(!canRun)('on anvil (1 s blocks, like a real chain)', () => {
     expect(settles).toBe(1);
   }, 30_000);
 
-  it('P3-2: an HSP ACCEPT that points at an OLDER transfer of the same amount is not delivered', async () => {
-    const w = walletClientFor(chain.net, buyer());
-    const old = await w.writeContract({ address: chain.net.usdc.address, abi: ERC20_EIP3009_ABI, functionName: 'transfer', args: [operator().address, 100_000n] });
-    await publicClientFor(chain.net).waitForTransactionReceipt({ hash: old });
-    const coord = new Hono();
-    coord.get('/payments/:id', (c) => c.json({ mandate: {}, receipt: {}, attestations: [] }));
-    const srv = await listen(coord);
-    const client = { pay: async () => ({ paymentId: keccak256(toHex('old')), txHash: old as Hex, status: 'SETTLED' }) };
-    const verifier = { verify: async () => ({ ok: true, outcomeClass: 'ACCEPT' }) };
-    const rt: Runtime = { net: chain.net, operator: operator(), buyer: buyer(), guard: new SpendGuard(), hsp: new SdkHspRail({ coordinatorUrl: srv.url, apiKey: 't' }, client, verifier), facilitatorUrl: '', facilitatorLabel: '', close: () => {} };
-    const r = await hireViaHsp(rt, 'hello');
-    await srv.close();
-    expect(r.ok).toBe(false);
-    expect(r.steps.at(-1)!.title).toMatch(/not delivering/);
-  }, 30_000);
+  // P3-2 (an HSP record pointing at an older transfer) moved to test/hsp-merchant-e2e.test.ts with the HashKey Merchant rail.
 });

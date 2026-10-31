@@ -48,9 +48,15 @@ try {
   print(denied.steps);
   if (denied.denied?.code !== 'PER_TX_CAP') failures++;
 
-  console.log(`\n[HSP] same task over HSP (${rt.hsp.mode})`);
-  const h = await hireViaHsp(rt, args.text);
+  console.log(`\n[HSP] same task over HSP (${rt.hsp.mode === 'merchant' ? 'HashKey Merchant QA gateway' : rt.hsp.mode})`);
+  const h = await hireViaHsp(rt, args.text, {
+    waitMs: args.hspWait * 1000,
+    onOrder: (o) => {
+      if (o.paymentUrl) console.log(`  checkout: ${o.paymentUrl}\n  pay it with Agent A's wallet; waiting up to ${args.hspWait} s`);
+    },
+  });
   print(h.steps);
+  if (rt.hsp.mode === 'merchant' && !h.ok) failures++;
 } finally {
   server.close();
   rt.close();

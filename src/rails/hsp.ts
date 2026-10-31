@@ -1,178 +1,182 @@
-import { keccak256, toHex, type Address, type Hex, type LocalAccount } from 'viem';
+import { getAddress, isAddress, isHex, type Address, type Hex } from 'viem';
+import type { NetworkConfig } from '../config.js';
+import {
+  MERCHANT_QA_URL,
+  MerchantClient,
+  ON_CHAIN_STATES,
+  TERMINAL_STATES,
+  buildCartContents,
+  cartHash,
+  parseDecimal,
+  signMerchantAuthorization,
+  verifyWebhook,
+  type CreatedOrder,
+  type PaymentRecord,
+  type WebhookEvent,
+} from './hsp-merchant.js';
 
 /**
- * HSP (HashKey Settlement Protocol) rail behind one interface.
+ * HSP rail behind one interface. HSP is the HashKey Merchant API (src/rails/hsp-merchant.ts):
  *
- *  - `sdk`:  the organizer's @hsp/sdk (HSPClient.pay(), payX402(), HSPVerifier.verify()) against the team's
- *            sandbox Coordinator. Used when HSP_COORDINATOR_URL + HSP_API_KEY are set AND the SDK is installed
- *            (it is not on npm: the organizer shares the repo with the credentials).
- *  - `stub`: until then. It never claims a payment happened: every result is marked `simulated: true`, the
- *            verifier outcome is `SIMULATED` (never ACCEPT), and the demo writes no on-chain receipt for it.
- *
- * Call shapes follow the HSP developer guide (docs.hskchain.net /docs/HSP, sections 4 and 6).
+ *  - `merchant`: Agent B creates a one-time Cart Mandate (HMAC + ES256K merchant JWT), the payer pays it at the
+ *                gateway's checkout (`payment_url`), and Agent B reads the outcome from the payments API (or a
+ *                signed webhook). Used when app_key, app_secret and the merchant key are all available.
+ *  - `stub`:     until then. It never claims a payment happened: every result is `simulated: true` and the demo
+ *                writes no on-chain receipt for it.
  */
 
-export type Compliance = 'kyc' | 'sanctions';
-export type OutcomeClass = 'ACCEPT' | 'RETRYABLE' | 'POLICY' | 'PERMANENT';
-
-export interface HspPayment {
-  /** = mandateHash (bytes32) on the real rail. */
-  paymentId: string;
-  txHash?: Hex;
-  status: string;
+export interface HspOrder {
+  cartMandateId: string;
+  paymentRequestId: string;
+  paymentUrl?: string;
+  amount: bigint;
+  payTo: Address;
   simulated: boolean;
-  via: 'pay' | 'payX402';
-  explorerUrl?: string;
 }
 
-export interface HspVerdict {
-  ok: boolean;
-  outcomeClass: OutcomeClass | 'SIMULATED';
+/** A payment record reduced to what the seller acts on, with addresses and amounts already parsed. */
+export interface HspPaymentState {
+  status: string;
+  /** On chain (included, safe or finalized). */
+  paid: boolean;
+  terminal: boolean;
   simulated: boolean;
-  requiredCapabilities?: string[];
-  satisfiedCapabilities?: string[];
-  detail?: unknown;
+  txHash?: Hex;
+  payer?: Address;
+  payTo?: Address;
+  token?: Address;
+  chain?: string;
+  amount?: bigint;
+  reason?: string;
 }
 
 export interface HspRail {
-  readonly mode: 'sdk' | 'stub';
+  readonly mode: 'merchant' | 'stub';
   /** Why the rail is in stub mode (shown in the UI). */
   readonly reason?: string;
-  pay(req: { to: Address; amount: bigint; compliance?: Compliance[] }): Promise<HspPayment>;
-  payX402(req: { merchant: Address; amount: bigint; compliance?: Compliance[] }): Promise<HspPayment>;
-  /** Independent verification with HSPVerifier against the pinned adapter address. ACCEPT means ship. */
-  verify(paymentId: string): Promise<HspVerdict>;
+  createOrder(req: { taskRef: string; amount: bigint; payTo: Address; label: string }): Promise<HspOrder>;
+  payment(paymentRequestId: string): Promise<HspPaymentState>;
+  /** Verifies a gateway webhook (HMAC over the raw body) and keeps it; throws when it is not authentic. */
+  handleWebhook?(rawBody: string, signatureHeader: string | undefined): WebhookEvent;
 }
 
-export interface HspEnv {
-  coordinatorUrl?: string;
-  apiKey?: string;
-  facilitatorUrl?: string;
-  issuerUrl?: string;
-  adapterAddress?: string;
-  chain?: string;
+export interface HspSecrets {
+  appKey?: string;
+  appSecret?: string;
+  /** PEM (PKCS8 or SEC1) of the secp256k1 merchant key registered with the gateway. */
+  merchantPrivateKeyPem?: string;
 }
 
-export function hspEnvFromProcess(): HspEnv {
+export interface HspConfig extends HspSecrets {
+  baseUrl?: string;
+  merchantName?: string;
+}
+
+export function hspConfigFromProcess(): Pick<HspConfig, 'baseUrl' | 'merchantName'> {
   const v = (k: string) => process.env[k]?.trim() || undefined;
-  return {
-    coordinatorUrl: v('HSP_COORDINATOR_URL'),
-    apiKey: v('HSP_API_KEY'),
-    facilitatorUrl: v('HSP_FACILITATOR_URL'),
-    issuerUrl: v('HSP_ISSUER_URL'),
-    adapterAddress: v('HSP_ADAPTER_ADDRESS'),
-    chain: v('HSP_CHAIN') ?? 'hashkey-testnet',
-  };
+  return { baseUrl: v('HSP_MERCHANT_BASE_URL') ?? MERCHANT_QA_URL, merchantName: v('HSP_MERCHANT_NAME') ?? 'AgentSettle' };
 }
 
-/** Stub rail: deterministic shape, loudly simulated. */
+/** Stub rail: same shapes, loudly simulated. */
 export class StubHspRail implements HspRail {
   readonly mode = 'stub' as const;
   constructor(readonly reason: string) {}
 
-  private fake(via: HspPayment['via'], to: Address, amount: bigint): HspPayment {
-    const paymentId = keccak256(toHex(`stub:${via}:${to}:${amount}:${Date.now()}:${Math.random()}`));
-    return { paymentId, status: 'SIMULATED', simulated: true, via };
+  async createOrder(req: { taskRef: string; amount: bigint; payTo: Address; label: string }): Promise<HspOrder> {
+    const id = `SIM-${req.taskRef}`;
+    return { cartMandateId: id, paymentRequestId: id, amount: req.amount, payTo: req.payTo, simulated: true };
   }
 
-  async pay(req: { to: Address; amount: bigint }): Promise<HspPayment> {
-    return this.fake('pay', req.to, req.amount);
-  }
-
-  async payX402(req: { merchant: Address; amount: bigint }): Promise<HspPayment> {
-    return this.fake('payX402', req.merchant, req.amount);
-  }
-
-  async verify(): Promise<HspVerdict> {
-    return { ok: false, outcomeClass: 'SIMULATED', simulated: true, detail: this.reason };
+  async payment(_paymentRequestId: string): Promise<HspPaymentState> {
+    return { status: 'SIMULATED', paid: false, terminal: true, simulated: true, reason: this.reason };
   }
 }
 
-/** Loads a module by a name TypeScript does not try to resolve (the HSP SDK is not installed until credentials arrive). */
-async function importOptional(name: string): Promise<any | undefined> {
+const addr = (v: unknown): Address | undefined => (typeof v === 'string' && isAddress(v, { strict: false }) ? getAddress(v) : undefined);
+
+/** Parses a gateway record for one network: anything malformed stays undefined, so the flow refuses to deliver on it. */
+export function toPaymentState(rec: PaymentRecord, net: NetworkConfig): HspPaymentState {
+  let amount: bigint | undefined;
   try {
-    return await import(/* @vite-ignore */ name);
+    amount = rec.pay_amount === undefined ? undefined : parseDecimal(String(rec.pay_amount), net.usdc.decimals);
   } catch {
-    return undefined;
+    amount = undefined;
   }
+  const tx = typeof rec.tx_signature === 'string' && isHex(rec.tx_signature) && rec.tx_signature.length === 66 ? (rec.tx_signature as Hex) : undefined;
+  return {
+    status: String(rec.status),
+    paid: ON_CHAIN_STATES.includes(String(rec.status)),
+    terminal: TERMINAL_STATES.includes(String(rec.status)),
+    simulated: false,
+    txHash: tx,
+    payer: addr(rec.payer_address),
+    payTo: addr(rec.to_pay_address),
+    token: addr(rec.token_address),
+    chain: typeof rec.chain === 'string' ? rec.chain : undefined,
+    amount,
+    reason: typeof rec.status_reason === 'string' ? rec.status_reason : undefined,
+  };
 }
 
-/** Real rail over @hsp/sdk. Only constructed by createHspRail once the SDK and the credentials are both present. */
-export class SdkHspRail implements HspRail {
-  readonly mode = 'sdk' as const;
+export class MerchantHspRail implements HspRail {
+  readonly mode = 'merchant' as const;
   readonly reason = undefined;
-  private readonly handles = new Map<string, any>();
+  private readonly webhooks = new Map<string, WebhookEvent>();
 
   constructor(
-    private readonly env: Required<Pick<HspEnv, 'coordinatorUrl' | 'apiKey'>> & HspEnv,
-    private readonly client: any,
-    private readonly verifier: any | undefined,
+    private readonly net: NetworkConfig,
+    private readonly client: MerchantClient,
+    private readonly merchant: { name: string; privateKeyPem: string; orderTtlSeconds?: number },
+    private readonly webhookSecret: string,
+    private readonly now: () => number = () => Date.now(),
   ) {}
 
-  private explorer(): string {
-    return `${this.env.coordinatorUrl.replace(/\/+$/, '')}/explorer`;
-  }
-
-  private profile(compliance?: Compliance[]) {
-    return compliance?.length ? { profile: { compliance } } : {};
-  }
-
-  async pay(req: { to: Address; amount: bigint; compliance?: Compliance[] }): Promise<HspPayment> {
-    const handle = await this.client.pay({ to: req.to, amount: req.amount, ...this.profile(req.compliance) });
-    const final = typeof handle.awaitSettled === 'function' ? await handle.awaitSettled() : handle;
-    this.handles.set(handle.paymentId, final);
-    return { paymentId: handle.paymentId, txHash: final.txHash ?? handle.txHash, status: final.status, simulated: false, via: 'pay', explorerUrl: this.explorer() };
-  }
-
-  async payX402(req: { merchant: Address; amount: bigint; compliance?: Compliance[] }): Promise<HspPayment> {
-    if (!this.env.facilitatorUrl) throw new Error('HSP_FACILITATOR_URL is not set (the organizer shares it with the sandbox)');
-    const res = await this.client.payX402({ merchant: req.merchant, facilitatorUrl: this.env.facilitatorUrl, amount: req.amount, ...this.profile(req.compliance) });
-    const final = typeof res?.awaitSettled === 'function' ? await res.awaitSettled() : res;
-    return { paymentId: res.paymentId, txHash: final?.txHash ?? res.txHash, status: final?.status ?? res.status, simulated: false, via: 'payX402', explorerUrl: this.explorer() };
-  }
-
-  async verify(paymentId: string): Promise<HspVerdict> {
-    // Fetch the stored triple, then decide locally: never trust the Coordinator's own verdict.
-    const r = await fetch(`${this.env.coordinatorUrl.replace(/\/+$/, '')}/payments/${encodeURIComponent(paymentId)}`, {
-      headers: { authorization: `Bearer ${this.env.apiKey}` },
+  async createOrder(req: { taskRef: string; amount: bigint; payTo: Address; label: string }): Promise<HspOrder> {
+    const contents = buildCartContents({
+      cartMandateId: `AS-${req.taskRef}`,
+      paymentRequestId: `AS-PR-${req.taskRef}`,
+      merchantName: this.merchant.name,
+      label: req.label,
+      amount: req.amount,
+      token: { address: this.net.usdc.address, symbol: 'USDC', decimals: this.net.usdc.decimals },
+      network: { name: this.net.name, chainId: this.net.chainId },
+      payTo: req.payTo,
+      expiresAt: new Date(this.now() + (this.merchant.orderTtlSeconds ?? 2 * 3600) * 1000),
     });
-    if (!r.ok) return { ok: false, outcomeClass: 'RETRYABLE', simulated: false, detail: `coordinator ${r.status}` };
-    const stored: any = await r.json();
-    if (!this.verifier) return { ok: false, outcomeClass: 'PERMANENT', simulated: false, detail: 'HSPVerifier unavailable (HSP_ADAPTER_ADDRESS not pinned)' };
-    const decision = await this.verifier.verify(stored.mandate, stored.receipt, stored.attestations ?? []);
-    return {
-      ok: decision.ok === true && decision.outcomeClass === 'ACCEPT',
-      outcomeClass: decision.outcomeClass,
-      simulated: false,
-      requiredCapabilities: decision.requiredCapabilities,
-      satisfiedCapabilities: decision.satisfiedCapabilities,
-      detail: decision,
-    };
+    const jwt = signMerchantAuthorization(this.merchant.privateKeyPem, {
+      merchantName: this.merchant.name,
+      cartHash: cartHash(contents),
+      now: Math.floor(this.now() / 1000),
+    });
+    const created: CreatedOrder = await this.client.createOrder({ contents, merchant_authorization: jwt });
+    if (created.paymentRequestId !== contents.payment_request.details.id) {
+      throw new Error(`gateway answered payment_request_id ${created.paymentRequestId}, expected ${contents.payment_request.details.id}`);
+    }
+    return { cartMandateId: contents.id, paymentRequestId: created.paymentRequestId, paymentUrl: created.paymentUrl, amount: req.amount, payTo: req.payTo, simulated: false };
+  }
+
+  /** The payments API is the source of truth; a verified webhook only lets the UI show progress earlier. */
+  async payment(paymentRequestId: string): Promise<HspPaymentState> {
+    return toPaymentState(await this.client.paymentByRequestId(paymentRequestId), this.net);
+  }
+
+  handleWebhook(rawBody: string, signatureHeader: string | undefined): WebhookEvent {
+    const event = verifyWebhook(rawBody, signatureHeader, this.webhookSecret, Math.floor(this.now() / 1000));
+    this.webhooks.set(event.payment_request_id, event);
+    if (this.webhooks.size > 1000) this.webhooks.delete(this.webhooks.keys().next().value!);
+    return event;
+  }
+
+  lastWebhook(paymentRequestId: string): WebhookEvent | undefined {
+    return this.webhooks.get(paymentRequestId);
   }
 }
 
-/**
- * Picks the rail. `account` is the HSP payer (W6 on testnet): HSP is wallet-settling, so it signs the mandate
- * AND broadcasts the transfer, and needs test HSK + test USDC.
- */
-export async function createHspRail(account: LocalAccount | undefined, env: HspEnv = hspEnvFromProcess()): Promise<HspRail> {
-  if (!env.coordinatorUrl || !env.apiKey) {
-    return new StubHspRail('waiting for the HSP sandbox credentials (HSP_COORDINATOR_URL, HSP_API_KEY) from the organizer');
-  }
-  if (!account) return new StubHspRail('HSP credentials are set but there is no testnet buyer key (TESTNET_BUYER_PRIVATE_KEY)');
-  const sdk = await importOptional('@hsp/sdk');
-  const chains = await importOptional('@hsp/core/chains/index');
-  if (!sdk?.HSPClient || !chains?.resolveChain) {
-    return new StubHspRail('HSP credentials are set but @hsp/sdk is not installed (clone the organizer repo, then pnpm add it)');
-  }
-  const chain = chains.resolveChain(env.chain ?? 'hashkey-testnet');
-  const client = new sdk.HSPClient({
-    coordinatorUrl: env.coordinatorUrl,
-    apiKey: env.apiKey,
-    signer: { kind: 'viemAccount', account },
-    chain,
-    ...(env.issuerUrl ? { issuerUrl: env.issuerUrl } : {}),
-  });
-  const verifier = env.adapterAddress && sdk.HSPVerifier ? new sdk.HSPVerifier({ chain, adapterAddress: env.adapterAddress }) : undefined;
-  return new SdkHspRail({ ...env, coordinatorUrl: env.coordinatorUrl, apiKey: env.apiKey }, client, verifier);
+/** Picks the rail: merchant mode only with app_key, app_secret and the merchant key; otherwise a stub that says what is missing. */
+export function createHspRail(net: NetworkConfig, cfg: HspConfig): HspRail {
+  if (net.name !== 'hashkey-testnet') return new StubHspRail('HSP runs against the HashKey Merchant QA gateway on hashkey-testnet only');
+  const missing = [!cfg.appKey && 'app_key', !cfg.appSecret && 'app_secret', !cfg.merchantPrivateKeyPem && 'merchant key'].filter(Boolean);
+  if (missing.length) return new StubHspRail(`waiting for the HashKey Merchant credentials (${missing.join(', ')})`);
+  const client = new MerchantClient({ baseUrl: cfg.baseUrl ?? MERCHANT_QA_URL, creds: { appKey: cfg.appKey!, appSecret: cfg.appSecret! } });
+  return new MerchantHspRail(net, client, { name: cfg.merchantName ?? 'AgentSettle', privateKeyPem: cfg.merchantPrivateKeyPem! }, cfg.appSecret!);
 }

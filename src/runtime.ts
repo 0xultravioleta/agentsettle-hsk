@@ -6,7 +6,8 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { accountFromEnv, agentAccounts } from './accounts.js';
 import { assertMainnetAllowed, getNetwork, keyEnvNames, type NetworkConfig, type NetworkName } from './config.js';
 import { createLocalFacilitator } from './facilitator/local.js';
-import { createHspRail, type HspRail } from './rails/hsp.js';
+import { createHspRail, hspConfigFromProcess, type HspRail } from './rails/hsp.js';
+import { AwsSsmStore, hspSsmPrefix, loadHspSecrets } from './hsp-secrets.js';
 import { ensureLocalChain } from './local-chain.js';
 import { DEFAULT_POLICY, FileLedger, SpendGuard } from './spend-guard.js';
 
@@ -94,6 +95,15 @@ export function pickFacilitator(net: NetworkConfig, mode: FacilitatorMode, remot
   return mode;
 }
 
+/** HSP secrets come from SSM (testnet only; nothing is read for other networks or with HSP_SSM_PREFIX=off). */
+function hspSecretsFor(net: NetworkConfig) {
+  const prefix = hspSsmPrefix();
+  if (net.name !== 'hashkey-testnet' || !prefix) return {};
+  const { error, ...secrets } = loadHspSecrets(new AwsSsmStore({ region: process.env.AWS_REGION?.trim() || undefined }), prefix);
+  if (error) console.warn(`HSP secrets not loaded from SSM (${prefix}): ${error}`);
+  return secrets;
+}
+
 export async function createRuntime(name: NetworkName, opts: { facilitator?: FacilitatorMode; root?: string } = {}): Promise<Runtime> {
   const root = opts.root ?? process.cwd();
   const mode = opts.facilitator ?? 'auto';
@@ -104,7 +114,7 @@ export async function createRuntime(name: NetworkName, opts: { facilitator?: Fac
     const operator = privateKeyToAccount(chain.keys.operator);
     const buyer = privateKeyToAccount(chain.keys.buyer);
     const fac = await serveLocalFacilitator(chain.net, privateKeyToAccount(chain.keys.facilitator), operator.address);
-    const hsp = await createHspRail(undefined, {}); // HSP only exists on the testnet sandbox
+    const hsp = createHspRail(chain.net, {}); // HSP only exists on the testnet gateway
     return { net: chain.net, operator, buyer, guard, hsp, facilitatorUrl: fac.url, facilitatorLabel: 'local dev facilitator (anvil)', close: fac.close };
   }
 
@@ -115,7 +125,7 @@ export async function createRuntime(name: NetworkName, opts: { facilitator?: Fac
   const { operator, buyer } = agentAccounts(name);
   const names = keyEnvNames(name);
   if (!operator || !buyer) throw new Error(`set ${names.operator} and ${names.buyer} in .env for ${name}`);
-  const hsp = await createHspRail(name === 'hashkey-testnet' ? buyer : undefined);
+  const hsp = createHspRail(net, { ...hspConfigFromProcess(), ...hspSecretsFor(net) });
   const remote = (process.env.FACILITATOR_URL?.trim() || PRODUCTION_FACILITATOR).replace(/\/+$/, '');
   if (net.mainnet && remote !== PRODUCTION_FACILITATOR) {
     throw new Error(`on mainnet only ${PRODUCTION_FACILITATOR} settles; FACILITATOR_URL is ${remote}`);

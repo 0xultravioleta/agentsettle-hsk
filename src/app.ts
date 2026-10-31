@@ -1,9 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { Hono, type Context, type Next } from 'hono';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { explorerAddress, PREMIUM_TASK_PRICE, TASK_PRICE } from './config.js';
-import { hire } from './agents/buyer.js';
+import { hire, type Step } from './agents/buyer.js';
 import { hireViaHsp } from './agents/hsp-flow.js';
 import { createSeller, facilitatorClient } from './agents/seller.js';
 import { MAX_TEXT_LENGTH } from './agents/translate.js';
@@ -62,6 +63,19 @@ export function createApp(rt: Runtime, publicUrl: string): Hono {
   );
   app.use('/api/*', consoleGuard(publicUrl));
 
+  // HashKey Merchant webhook: server to server, authenticated by its own HMAC (not by the console guard)
+  app.post('/hsp/webhook', async (c) => {
+    if (!rt.hsp.handleWebhook) return c.json({ code: 10003, msg: 'HSP rail is not live' }, 404);
+    const raw = await c.req.text();
+    if (raw.length > 64 * 1024) return c.json({ code: 10001, msg: 'body too large' }, 413);
+    try {
+      rt.hsp.handleWebhook(raw, c.req.header('x-signature'));
+    } catch {
+      return c.json({ code: 10002, msg: 'invalid signature' }, 401);
+    }
+    return c.json({ code: 0 });
+  });
+
   app.get('/api/config', (c) =>
     c.json({
       network: rt.net.name,
@@ -92,10 +106,31 @@ export function createApp(rt: Runtime, publicUrl: string): Hono {
     return c.json(json(result));
   });
 
+  // An HSP purchase waits for someone to pay at the gateway's checkout: answer as soon as the order (and its
+  // payment_url) exists, and let the console follow the job.
+  const hspJobs = new Map<string, { steps: Step[]; done: boolean; ok?: boolean }>();
   app.post('/api/hsp', async (c) => {
-    const body = (await c.req.json().catch(() => ({}))) as { text?: string; via?: string };
+    const body = (await c.req.json().catch(() => ({}))) as { text?: string };
     const text = String(body.text ?? '').trim().slice(0, MAX_TEXT_LENGTH) || 'Hello world';
-    return c.json(json(await hireViaHsp(rt, text, { via: body.via === 'payX402' ? 'payX402' : 'pay' })));
+    const id = randomUUID();
+    const job: { steps: Step[]; done: boolean; ok?: boolean } = { steps: [], done: false };
+    hspJobs.set(id, job);
+    if (hspJobs.size > 50) hspJobs.delete(hspJobs.keys().next().value!);
+    let orderReady!: () => void;
+    const ready = new Promise<void>((r) => (orderReady = r));
+    hireViaHsp(rt, text, { steps: job.steps, onOrder: () => orderReady() })
+      .then((r) => Object.assign(job, { ok: r.ok }))
+      .catch((err) => job.steps.push({ step: 'error', at: new Date().toISOString(), title: err instanceof Error ? err.message.split('\n')[0]! : String(err) }))
+      .finally(() => {
+        job.done = true;
+        orderReady();
+      });
+    await ready;
+    return c.json(json({ id, ...job }));
+  });
+  app.get('/api/hsp/:id', (c) => {
+    const job = hspJobs.get(c.req.param('id'));
+    return job ? c.json(json({ id: c.req.param('id'), ...job })) : c.json({ error: 'unknown HSP job' }, 404);
   });
 
   app.get('/api/receipts', async (c) => {

@@ -1,0 +1,79 @@
+{
+  "cart_mandate": {
+    "contents": {
+      "id": "ORDER-20240301-001",
+      "user_cart_confirmation_required": true,
+      "payment_request": {
+        "method_data": [
+          {
+            "supported_methods": "https://www.x402.org/",
+            "data": {
+              "x402Version": 2,
+              "network": "sepolia",
+              "chain_id": 11155111,
+              "contract_address": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+              "pay_to": "0x99c12865b7e4e0cb8a708b448909b76aa1729afd",
+              "coin": "USDC"
+            }
+          }
+        ],
+        "details": {
+          "id": "PAY-REQ-20240301-001",
+          "display_items": [
+            {
+              "label": "Item A",
+              "amount": {
+                "currency": "USD",
+                "value": "10.00"
+              }
+            },
+            {
+              "label": "Item B",
+              "amount": {
+                "currency": "USD",
+                "value": "5.00"
+              }
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": {
+              "currency": "USD",
+              "value": "15.00"
+            }
+          },
+          "modifiers": [
+            {
+              "supported_methods": "https://www.x402.org/",
+              "data": {
+                "method_data_indexes": [
+                  0
+                ]
+              },
+              "additional_display_items": [
+                {
+                  "label": "Service fee",
+                  "amount": {
+                    "currency": "USD",
+                    "value": "1.00"
+                  }
+                }
+              ],
+              "total": {
+                "label": "Amount due",
+                "amount": {
+                  "currency": "USD",
+                  "value": "16.00"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "cart_expiry": "2024-03-01T12:00:00Z",
+      "merchant_name": "My Store"
+    },
+    "merchant_authorization": "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ..."
+  },
+  "redirect_url": "https://yoursite.com/payment/callback"
+}

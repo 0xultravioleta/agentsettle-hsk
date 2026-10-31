@@ -1,0 +1,9 @@
+{
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "payment_request_id": "PAY-REQ-20240301-001",
+    "payment_url": "https://pay.hashkey.com/flow/xxx",
+    "multi_pay": false
+  }
+}

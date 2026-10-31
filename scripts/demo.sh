@@ -6,7 +6,7 @@
 #   scripts/demo.sh --ui                             # same, then keeps the judge UI up on http://127.0.0.1:8402
 #   MAINNET_OWNER_OK=yes scripts/demo.sh --network hashkey   # ONLY after the owner approved the exact amount
 #
-# Other flags go to the demo: --runs N, --text "...", --facilitator auto|local|remote, --port P.
+# Other flags go to the demo: --runs N, --text "...", --facilitator auto|local|remote, --port P, --hsp-wait SECONDS.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -61,7 +61,7 @@ if [[ "$UI" == 1 ]]; then
   for ((i = 0; i < ${#ARGS[@]}; i++)); do
     case "${ARGS[$i]}" in
       --network|--facilitator|--port) SERVE_ARGS+=("${ARGS[$i]}" "${ARGS[$((i + 1))]}"); i=$((i + 1)) ;;
-      --runs|--text) i=$((i + 1)) ;;
+      --runs|--text|--hsp-wait) i=$((i + 1)) ;;
     esac
   done
   "$TSX" src/cli/serve.ts "${SERVE_ARGS[@]}"
