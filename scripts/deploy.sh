@@ -43,7 +43,13 @@ forge build --quiet
 OUT=$(DEPLOYER_PRIVATE_KEY="$KEY" forge script contracts/script/Deploy.s.sol --rpc-url "$RPC" --broadcast --slow 2>&1) || { echo "$OUT" | grep -v -i "private" >&2; exit 1; }
 ADDR=$(echo "$OUT" | grep -o 'AgentSettleReceipts 0x[0-9a-fA-F]\{40\}' | head -1 | awk '{print $2}')
 [[ -n "$ADDR" ]] || { echo "could not read the deployed address" >&2; exit 1; }
-[[ "$(cast call "$ADDR" 'operator()(address)' --rpc-url "$RPC")" == "$FROM" ]] || { echo "operator() mismatch on $ADDR" >&2; exit 1; }
+# a load-balanced RPC can answer from a node that has not seen the deploy block yet: retry before calling it a mismatch
+OP=""
+for _ in $(seq 1 20); do
+  OP=$(cast call "$ADDR" 'operator()(address)' --rpc-url "$RPC" 2>/dev/null) && [[ -n "$OP" ]] && break
+  sleep 3
+done
+[[ "$OP" == "$FROM" ]] || { echo "operator() on $ADDR is '${OP:-no code yet}', expected $FROM (the deploy tx is in broadcast/; do not redeploy blindly)" >&2; exit 1; }
 echo "deployed $ADDR  $EXPLORER/address/$ADDR"
 
 forge verify-contract "$ADDR" contracts/AgentSettleReceipts.sol:AgentSettleReceipts \

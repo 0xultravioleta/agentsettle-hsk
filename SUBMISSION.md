@@ -90,7 +90,7 @@ Agent Payments & A2A Settlement
 | Placeholder | Source |
 |---|---|
 | `[CONTRACT_ADDRESS]` | mainnet deploy of `AgentSettleReceipts` (after the owner's OK); also in README.md |
-| `[TESTNET_CONTRACT_ADDRESS]` | testnet deploy (after faucet HSK reaches W5) |
+| ~~`[TESTNET_CONTRACT_ADDRESS]`~~ | filled: `0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1` (verified, https://testnet-explorer.hskchain.net/address/0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1) |
 | `[REPO_URL]` | after the owner approves making the repo public |
 | ~~`[PR_URL]`~~ | filled: https://github.com/UltravioletaDAO/x402-rs/pull/132 (merged, live in 2.52.0) |
 | `[YOUTUBE_URL]`, `[DECK_URL]`, `[LOGO]` | after recording and upload |
