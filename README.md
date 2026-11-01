@@ -130,7 +130,7 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 - **`taskId` is derived from the payment** (chain, payer, EIP-3009 nonce). A retried delivery therefore cannot write a second receipt: the contract reverts with `exists`.
 - **The console API (`/api/*`) only answers the console itself.** It requires a JSON body, a same-origin `Origin`/`Sec-Fetch-Site`, and our own `Host`, which stops DNS rebinding.
 - **The local facilitator** listens on its own loopback port. It refuses browser requests and settles only payments to our seller.
-- **Mainnet guard:** nothing runs on chain 177 unless `MAINNET_OWNER_OK=yes` is set. This includes `forge script` itself (`Deploy.s.sol`). On mainnet only the production facilitator settles, and the run refuses to start while its `/health/ready` marks HashKey down.
+- **Mainnet guard:** nothing runs on chain 177 unless `MAINNET_OWNER_OK=yes` is set. `scripts/deploy.sh` and the app take it only from the command line of that run, never from `.env`. `Deploy.s.sol` checks it as well, but a bare `forge script` does read it from `.env` (forge loads `.env` itself), so that line never goes in `.env`. `scripts/deploy.sh hashkey` also refuses while `.env` already holds `RECEIPTS_ADDRESS_MAINNET`, unless it gets `--redeploy`. On mainnet only the production facilitator settles, and the run refuses to start while its `/health/ready` marks HashKey down.
 - **Keys** live only in `.env`, which is gitignored. They are never logged, never echoed in errors, and never returned by the API. `gitleaks` runs in CI on every commit.
 
 ## Built before vs. during the hackathon

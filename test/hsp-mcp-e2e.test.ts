@@ -192,9 +192,11 @@ describe.skipIf(!canRun)('HSP Agentic Payment (MCP) on anvil', () => {
   });
 
   it('a yes that comes after the quote expired does not hand HSP the signature', async () => {
-    const { r, f, last } = await run(['AgentSettle', operator().address, true, true, { approve: true, afterMs: 1_500 }], {
+    const { r, f, last, prompts } = await run(['AgentSettle', operator().address, true, true, { approve: true, afterMs: 1_500 }], {
       tamper: (p) => (p.quote_expires_at = new Date(Date.now() + 1_000).toISOString()),
     });
+    // the run reached "Submit?" (the quote was still live before it), so the check that stopped it is the one after the yes
+    expect(prompts.at(-1)).toMatch(/^Submit\?/);
     expect(r.ok).toBe(false);
     expect(last).toMatch(/the quote expired .*: the signature was not sent/);
     expect(f.calls).not.toContain('finalize_payment');
