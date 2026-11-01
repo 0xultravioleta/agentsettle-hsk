@@ -30,7 +30,7 @@ On top of that, an autonomous buyer needs **guardrails**, so a bug or a maliciou
 6. B delivers the result and writes **`AgentSettleReceipts.recordReceipt(taskId, payer, payee, token, amount, settleTx, hspPaymentId, keccak256(result))`**.
 7. **HSP rail:** the same task is paid through **HSP**, the HashKey Merchant API, on testnet.
    - B creates a one-time **cart mandate**: HMAC-SHA256 signed request, ES256K merchant JWT over the cart hash.
-   - The payer pays it at the gateway's checkout (`payment_url`).
+   - A person pays it at the gateway's checkout (`payment_url`) from their own testnet wallet. The gateway's agent-side payment API is not documented, so Agent A does not pay HSP orders yet.
    - B reads the payment record and checks it against the order (payee, token, chain, amount), then checks the transfer on-chain.
    - Only then does B deliver. The receipt carries the HSP `payment_request_id` as `hspPaymentId`.
 8. When A is asked for 2 USDC, the per-transaction cap **refuses before anything is signed**. This is shown in the demo.
@@ -97,9 +97,9 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 | x402 flow end to end (seller, SDK client, facilitator, EIP-3009 transfer, receipt) on a local chain | ✅ covered by `test/e2e-local.test.ts` and `test/guards-e2e.test.ts` |
 | Contract on HashKey testnet | ✅ [`0xaE84CA77…`](https://testnet-explorer.hskchain.net/address/0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1), deployed by W5 in [tx 0xd2f083d1…](https://testnet-explorer.hskchain.net/tx/0xd2f083d1f44ecf293239653b06ab1bc0b93d9d17fecb12ff7cfff4a938c1bf60) (block 35115376) and verified on Blockscout |
 | x402 settle on HashKey testnet | ⏳ waiting for test USDC (`0x8FE3…`) on the buyer wallet |
-| Production facilitator with `hashkey` / `hashkey-testnet` | ✅ listed in `/supported` (2.52.0) and its `/verify` accepts our v2 payload on both chains · ⏳ it settles once its HashKey signer has gas (`/health/ready`) |
-| HSP on the HashKey Merchant QA gateway | ✅ adapter built and tested against the docs' recorded examples and an anvil e2e (`test/hsp-merchant*.test.ts`) · ✅ merchant key in SSM, registration data ready · ⏳ app_key/app_secret after registration, and the QA IP allowlist; until then the rail is a labelled stub |
-| Mainnet deploy + settlements | ⏳ only after the owner approves the exact amounts ([docs/FUNDING.md](docs/FUNDING.md)) |
+| Production facilitator with `hashkey` / `hashkey-testnet` | ✅ listed in `/supported` (2.52.0) and its `/verify` accepts our v2 payload on both chains · ✅ `/health/ready` reports both networks `ok`, their signers with gas (checked 2026-11-01) |
+| HSP on the HashKey Merchant QA gateway | ✅ adapter built and tested against the docs' recorded examples and an anvil e2e (`test/hsp-merchant*.test.ts`) · ✅ merchant key in SSM, registration data ready · ⏳ app_key/app_secret after registration, and the QA IP allowlist; until then the rail is a labelled stub · the checkout is paid by a person from their own testnet wallet, and Agent B checks the record and the on-chain transfer either way |
+| Mainnet deploy + settlements | ⏳ approved (deploy by W3, 5 to 10 runs); waiting for gas on W3 and USDC on W4 ([docs/FUNDING.md](docs/FUNDING.md)) |
 | EAS attestation per receipt, ERC-8004 feedback | not built (P1/P2) |
 
 ## Safety
@@ -129,7 +129,7 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
   - The TypeScript SDK [`uvd-x402-sdk`](https://www.npmjs.com/package/uvd-x402-sdk).
   - HashKey's HSP (HashKey Merchant) API, used through its public docs.
   - Foundry and forge-std.
-- **Built during the hackathon (Oct 29 – Nov 3, 2026):** everything in this repository. Commit range: `cac5ebf`…[LAST_COMMIT].
+- **Built during the hackathon (Oct 29 – Nov 2, 2026):** everything in this repository. Commit range: `cac5ebf`…[LAST_COMMIT].
 
 ## Repository layout
 

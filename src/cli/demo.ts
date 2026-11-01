@@ -52,7 +52,7 @@ try {
   const h = await hireViaHsp(rt, args.text, {
     waitMs: args.hspWait * 1000,
     onOrder: (o) => {
-      if (o.paymentUrl) console.log(`  checkout: ${o.paymentUrl}\n  pay it with Agent A's wallet; waiting up to ${args.hspWait} s`);
+      if (o.paymentUrl) console.log(`  checkout: ${o.paymentUrl}\n  pay it from your own wallet on ${rt.net.name}; Agent B checks the record and the transfer on-chain (waiting up to ${args.hspWait} s)`);
     },
   });
   print(h.steps);

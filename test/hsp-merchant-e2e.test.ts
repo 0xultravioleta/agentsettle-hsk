@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { keccak256, toHex, type Address, type Hex } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hireViaHsp } from '../src/agents/hsp-flow.js';
 import { ERC20_EIP3009_ABI, publicClientFor, walletClientFor } from '../src/chain.js';
 import { ensureLocalChain, type LocalChain } from '../src/local-chain.js';
@@ -110,6 +110,27 @@ describe.skipIf(!canRun)('HSP (HashKey Merchant) on anvil', () => {
     const r = await hireViaHsp(rt(), 'hello', { ...fast, taskRef: 'old', pay: async (o) => gw.setPayment(o.paymentRequestId, { status: 'payment-finalized', tx_signature: old, payer_address: buyer().address, to_pay_address: o.payTo, token_address: chain.net.usdc.address, chain: chain.net.caip2, pay_amount: '0.10' }) });
     expect(r.ok).toBe(false);
     expect(r.steps.at(-1)!.title).toMatch(/not delivering/);
+  });
+
+  it('backup B: a person pays the checkout from their own wallet (not Agent A); the record must name the wallet that really paid', async () => {
+    const person = privateKeyToAccount(generatePrivateKey());
+    const gas = await walletClientFor(chain.net, buyer()).sendTransaction({ to: person.address, value: 10n ** 16n });
+    await publicClientFor(chain.net).waitForTransactionReceipt({ hash: gas });
+    await transfer(person.address, 200_000n);
+    const payFrom = (claimed: Address) => async (o: HspOrder) => {
+      const hash = await walletClientFor(chain.net, person).writeContract({ address: chain.net.usdc.address, abi: ERC20_EIP3009_ABI, functionName: 'transfer', args: [o.payTo, o.amount] });
+      await publicClientFor(chain.net).waitForTransactionReceipt({ hash });
+      gw.setPayment(o.paymentRequestId, { status: 'payment-included', tx_signature: hash, payer_address: claimed, to_pay_address: o.payTo, token_address: chain.net.usdc.address, chain: chain.net.caip2, pay_amount: formatDecimal(o.amount, 6) });
+    };
+    const r = await hireViaHsp(rt(), 'hello', { ...fast, taskRef: 'person', pay: payFrom(person.address) });
+    expect(r.ok, JSON.stringify(r.steps, null, 1)).toBe(true);
+    expect(r.steps.find((s) => s.step === 'delivered')!.detail).toMatchObject({ payer: person.address, payerIsAgentA: false });
+    const receipt = (await listReceipts(chain.net)).find((x) => x.hspPaymentId === keccak256(toHex('AS-PR-person')));
+    expect(receipt?.payer).toBe(person.address);
+    // the same payment, but the record says Agent A paid it: the on-chain sender does not match, so no delivery
+    const lie = await hireViaHsp(rt(), 'hello', { ...fast, taskRef: 'person-lie', pay: payFrom(buyer().address) });
+    expect(lie.ok).toBe(false);
+    expect(lie.steps.at(-1)!.title).toMatch(/does not show 0.10 USDC/);
   });
 
   it('a record for another payee, token, chain or amount is refused before the chain is even asked', async () => {

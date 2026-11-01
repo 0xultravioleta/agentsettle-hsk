@@ -50,7 +50,7 @@ function detailHtml(s: Step): string {
   if (s.step === 'signed') return `<div class="kv">from ${esc(short(String(d.from)))} → to ${esc(short(String(d.to)))} · value ${esc(String(d.value))} · nonce ${esc(short(String(d.nonce)))} · <b>gas paid by buyer: 0</b></div>`;
   if (s.step === 'spend_denied') return `<div class="kv deny">per-tx cap ${esc(String(d.perTxCap ?? ''))} · daily cap ${esc(String(d.dailyCap ?? ''))} · nothing was signed</div>`;
   if (s.step === 'spend_check') return `<div class="kv">spent today ${esc(String(d.spentToday))} / ${esc(String(d.dailyCap))} USDC</div>`;
-  if (s.step === 'hsp_order' && typeof d.paymentUrl === 'string') return `<div class="kv">${link(d.paymentUrl, 'open the HashKey Merchant checkout')} · pay with Agent A's wallet</div>`;
+  if (s.step === 'hsp_order' && typeof d.paymentUrl === 'string') return `<div class="kv">${link(d.paymentUrl, 'open the HashKey Merchant checkout')} · pay from your own testnet wallet</div>`;
   const tx = typeof d.tx === 'string' ? d.tx : undefined;
   if (tx) return `<div class="kv mono">${s.link ? link(s.link, tx) : esc(tx)}</div>`;
   if (s.link) return `<div class="kv">${link(s.link, s.link)}</div>`;
