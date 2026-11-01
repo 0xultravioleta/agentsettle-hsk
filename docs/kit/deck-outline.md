@@ -1,6 +1,6 @@
 # Deck outline + speaker notes: AgentSettle (HSP, x402) (HashKey Chain Horizon Hackathon (Mumbai), Agent Payments & A2A Settlement)
 
-10 slides, 16:9. Export to PDF for upload. Visual style: dark violet (#2B0A3D) background, white text, one accent colour, a screenshot on every slide after 3.
+10 slides, 16:9. Export to PDF for upload. Visual style: dark violet (#2B0A3D) background, white text, one accent colour, a screenshot on every slide after 3. Every claim here matches `SUBMISSION.md`. Where it says `[IF HSP LIVE]` / `[IF HSP NOT LIVE]`, keep the same variant as in SUBMISSION.md.
 
 ## Slide 1: Title
 **On slide:**
@@ -15,53 +15,54 @@ Hi, I'm Luis from Ultravioleta. Agents paying agents, settled on HashKey Chain. 
 Agent-to-agent commerce needs three things: a way to ask for payment over HTTP, a settlement layer with compliance controls, and a receipt others can trust. HashKey's HSP provides the second. Our open-source x402 facilitator provides the first, across 43 networks, so we added HashKey Chain.
 
 **Speaker notes:**
-Set up the pain in one story. Name a real person or worker type. 20 seconds.
+One agent needs a translation and another agent sells it. Today there is no standard way for the first to pay the second and prove it. 20 seconds.
 
 ## Slide 3: The solution
 **On slide:**
-Agents hire and pay each other on HashKey Chain: HSP settlement plus an x402 facilitator with HashKey support, with ERC-8004 receipts.
+Agents hire and pay each other on HashKey Chain: HSP settlement plus an x402 facilitator with HashKey support, on-chain receipts.
 
 **Speaker notes:**
 One sentence, then go straight to the demo.
 
 ## Slide 4: Live demo
 **On slide:**
-Flow: request → task → claim → evidence → AI check → payout → reputation
+Flow: GET /task → 402 (USDC, eip155:177) → spend check → EIP-3009 signature (no gas) → facilitator settles → delivery → recordReceipt
 
 **Speaker notes:**
-Play the 60–90 s demo clip. Pause on the payout confirmation and on the AI's reasons.
+Play the 60–90 s demo clip. Pause on the settle tx on explorer.hsk.xyz and on the 2 USDC request the spend policy refuses.
 
 ## Slide 5: How it works
 **On slide:**
-We added hashkey (chain 177) and hashkey-testnet (133) to Ultravioleta's Rust x402 facilitator, settling Bridged USDC (0x054e…8D0a) via EIP-3009. The TypeScript agents use our x402 SDK on mainnet and the HSP SDK (pay, payX402, HSPVerifier) on the HSP testnet sandbox. AgentSettleReceipts is deployed on HashKey Chain mainnet at [CONTRACT_ADDRESS].
+We added hashkey (chain 177) and hashkey-testnet (133) to Ultravioleta's Rust x402 facilitator, settling Bridged USDC (0x054e…8D0a) via EIP-3009. The agents sign with viem and call the facilitator through our x402 SDK. The HSP rail calls the HashKey Merchant API directly. AgentSettleReceipts is deployed on HashKey Chain mainnet at [CONTRACT_ADDRESS].
 
 **Speaker notes:**
 Architecture diagram. Point at the sponsor component first.
 
-## Slide 6: Sponsor tech: HashKey Chain mainnet + HSP SDK
+## Slide 6: Sponsor tech: HashKey Chain mainnet + HSP (HashKey Merchant API)
 **On slide:**
-Exact APIs used, and where in the code
+- HashKey Chain mainnet (177): facilitator network `hashkey` (x402-rs #132, live in 2.52.0), USDC `0x054e…8D0a` via EIP-3009, `AgentSettleReceipts` at [CONTRACT_ADDRESS]
+- HSP: `src/rails/hsp-merchant.ts`: one-time cart mandates (`POST /api/v1/merchant/orders`) with an ES256K merchant JWT, payment queries (`GET /api/v1/merchant/payments`), signed webhooks (`POST /hsp/webhook`), HMAC-SHA256 on every request
 
 **Speaker notes:**
-Judges score sponsor usage heavily. Show the file names and one log line or tx hash.
+Judges score sponsor usage heavily. Show the file names and one settle tx hash. [IF HSP LIVE] Show the HSP payment record and its tx. [IF HSP NOT LIVE] Say the rail is built and tested, and waits for the QA gateway credentials.
 
 ## Slide 7: What's new in this hackathon
 **On slide:**
-New repo or module, commit range, demo stats: [N tasks / N payouts / N users]
+New repo, commit range `cac5ebf`…[LAST_COMMIT], the HashKey networks in the facilitator (x402-rs #132), demo stats: [N mainnet settlements / N receipts]
 
 **Speaker notes:**
-Be explicit about what existed before and what is new.
+Existed before: the x402 facilitator and its TypeScript SDK. New: HashKey support in the facilitator, the agents, the contract, the HSP rail and the console.
 
 ## Slide 8: Challenges and learnings
 **On slide:**
-A 60-hour window and a new chain. HashKey's USDC is EIP-3009 but its USDT has neither EIP-3009 nor permit, so we settled in USDC and checked every token's EIP-712 domain against the chain. Bridged USDC liquidity on mainnet is thin, and HSP and x402 h
+HashKey's USDC is EIP-3009 but its USDT has neither EIP-3009 nor permit, so we settled in USDC and checked every token's EIP-712 domain against the chain. Bridged USDC on mainnet can only be minted through Circle's bridge adapter, so even funding the demo took a route through Ethereum.
 
 **Speaker notes:**
-One honest challenge, one lesson.
+One honest challenge, one lesson: never trust a gateway's word alone. Agent B checks the payment record against the order and the transfer on-chain before it delivers.
 
 ## Slide 9: What's next
 **On slide:**
-Ship an HSP settlement adapter for our facilitator so every x402 payment on HashKey becomes an HSP receipt, add KYC and sanctions-gated tasks, and onboard Execution Market tasks paid on HashKey.
+Pay HSP cart mandates agent to agent through the gateway's payment API instead of a checkout page, add KYC and sanctions-gated tasks, attest each receipt with EAS, and onboard Execution Market tasks paid on HashKey.
 
 **Speaker notes:**
 Concrete next steps with dates if possible.
@@ -69,7 +70,7 @@ Concrete next steps with dates if possible.
 ## Slide 10: Team and links
 **On slide:**
 Luis, c0der · Ultravioleta DAO
-Repo · Demo · Video
+Repo · Video · Contract [CONTRACT_ADDRESS]
 
 **Speaker notes:**
-Thank the sponsor. Show the QR code to the demo.
+Thank the sponsor. Show the repo link and the contract page.

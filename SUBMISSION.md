@@ -3,7 +3,7 @@
 - **Submit at:** https://dorahacks.io/hackathon/hskchainindia/detail → Submit BUIDL
 - **Deadline:** Tue Nov 3, 2026, extended from Sun Nov 1, 11:00 AM EST. The new deadline covers registration and submission. Check the exact cut-off hour on the DoraHacks page. Internal freeze: [the owner sets it again after the extension].
 - **Format:** remote. The BUIDL is submitted on DoraHacks and the presentation is online.
-- **Source:** `docs/kit/form-fields.md` (kit), corrected so every claim matches what this repo actually does.
+- **Source:** the first draft in `docs/kit/form-fields.md`, corrected so every claim matches what this repo actually does. This file is now the only copy of the fields.
 - **Rule:** nobody registered, saved or submitted anything. Luis pastes and submits. Replace every `[PLACEHOLDER]` first.
 
 > **Before pasting, check two things.**
@@ -11,7 +11,7 @@
 > - **Changes from the kit:**
 >   - The kit's vision said "with ERC-8004 receipts". That is not built (it is P2), so the vision now says "on-chain receipts".
 >   - The kit stated HSP as done. It is now conditional.
->   - The kit describes HSP as an SDK (`pay`, `payX402`, `HSPVerifier`). The organizer clarified that HSP is the HashKey Merchant API (cart mandates, checkout, payment queries, webhooks), and this file now describes that. `docs/kit/` (deck outline, video script, README draft, form fields, social post) still has the SDK wording and the old Nov 1 deadline. Fix it there before using those pieces.
+>   - The kit describes HSP as an SDK (`pay`, `payX402`, `HSPVerifier`). The organizer clarified that HSP is the HashKey Merchant API (cart mandates, checkout, payment queries, webhooks), and this file now describes that. The rest of `docs/kit/` (click list, deck outline, video script, social post) was corrected the same way, with the same `[IF HSP LIVE]` choice. `form-fields.md` and `README-draft.md` now point here and to README.md.
 
 ### BUIDL name · 23 chars
 ```text

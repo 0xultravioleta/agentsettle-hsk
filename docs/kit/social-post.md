@@ -1,30 +1,32 @@
 # Social post drafts: HashKey Chain Horizon Hackathon (Mumbai), Agent Payments & A2A Settlement
 
-**Do not post. Luis posts from his own account after submission (or before, where the rules require it).**
+**Do not post. Luis posts from his own account after submission (or before, where the rules require it).** Check the sponsor's @ handle before posting, and keep the HSP sentence only if SUBMISSION.md keeps `[IF HSP LIVE]`.
 
-## X post (187/280 counting each link as 23) ✅
+## X post (234/280 counting each link as 23)
 ```text
-We added @HashKeyHSK Chain to our open-source x402 facilitator and built agent-to-agent settlement with HSP, deployed on mainnet.
+We added @HashKeyHSK Chain to our open-source x402 facilitator: agents now hire and pay each other in USDC on HashKey Chain mainnet, with an on-chain receipt for every task.
 
 BUIDL for HashKey Chain Horizon: [BUIDL_URL]
 ```
 
 ## X thread follow-ups (optional)
 ```text
-2/ How it works: We added hashkey (chain 177) and hashkey-testnet (133) to Ultravioleta's Rust x402 facilitator, settling Bridged USDC (0x054e…8D0a) via EIP-3009. The TypeScript agents use our x402 SDK on mainnet and the HSP SDK (pay, payX402, HSP
+2/ How it works: Agent B answers HTTP 402 with a USDC price. Agent A signs an EIP-3009 authorization (no gas), our facilitator settles it on chain 177, and B writes a receipt to AgentSettleReceipts. Caps: 0.50 USDC per tx, 5 per day.
 
-3/ What's next: Ship an HSP settlement adapter for our facilitator so every x402 payment on HashKey becomes an HSP receipt, add KYC and sanctions-gated tasks, and onboard Execution Market tasks paid on HashKey.
+3/ [IF HSP LIVE] The same task also runs over HSP, HashKey's merchant API: a signed cart mandate, payment at the HSP checkout, and B checks the record and the transfer on-chain before delivering.
 
-4/ Repo: [REPO_URL] · Demo: [DEMO_URL]
+4/ What's next: agent-to-agent HSP payments without a checkout page, KYC-gated tasks and EAS-attested receipts.
+
+5/ Repo: [REPO_URL] · Video: [VIDEO_URL]
 ```
 
 ## LinkedIn
 ```text
 We just shipped AgentSettle (HSP, x402) for HashKey Chain Horizon Hackathon (Mumbai), Agent Payments & A2A Settlement.
 
-Agents hire and pay each other on HashKey Chain: HSP settlement plus an x402 facilitator with HashKey support, with ERC-8004 receipts.
+Agents hire and pay each other on HashKey Chain: HSP settlement plus an x402 facilitator with HashKey support, on-chain receipts.
 
 Why: Agent-to-agent commerce needs three things: a way to ask for payment over HTTP, a settlement layer with compliance controls, and a receipt others can trust. HashKey's HSP provides the second. Our open-source x402 facilitator provides the first, across 43 networks, so we added HashKey Chain.
 
-Built by Ultravioleta DAO on Execution Market, PayBox and our open-source x402 facilitator. Video: [VIDEO_URL] · Repo: [REPO_URL]
+Built by Ultravioleta DAO with our open-source x402 facilitator. Video: [VIDEO_URL] · Repo: [REPO_URL]
 ```

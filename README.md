@@ -129,7 +129,7 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
   - The TypeScript SDK [`uvd-x402-sdk`](https://www.npmjs.com/package/uvd-x402-sdk).
   - HashKey's HSP (HashKey Merchant) API, used through its public docs.
   - Foundry and forge-std.
-- **Built during the hackathon (Oct 29 – Nov 1, 2026):** everything in this repository. Commit range: `cac5ebf`…[LAST_COMMIT].
+- **Built during the hackathon (Oct 29 – Nov 3, 2026):** everything in this repository. Commit range: `cac5ebf`…[LAST_COMMIT].
 
 ## Repository layout
 
