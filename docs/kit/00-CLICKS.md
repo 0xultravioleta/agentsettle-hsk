@@ -7,7 +7,7 @@
 - **Copy from:** `SUBMISSION.md` at the repo root (in form order), video from `video-script.md`, deck PDF from `deck-outline.md`.
 
 ## Fill these placeholders first (only Luis has them)
-Search SUBMISSION.md for `[` and replace: repo URL (after Luis approves making it public), video URL (after upload), deck URL, logo, personal fields (name, handles) and the mainnet tx links. The mainnet contract address is already filled in. Keep either the `[IF HSP LIVE]` or the `[IF HSP NOT LIVE]` sentence; SUBMISSION.md says how to tell which.
+Search SUBMISSION.md for `[` and replace: repo URL (after Luis approves making it public), video URL (after upload), deck URL, logo, personal fields (name, handles) and the mainnet tx links. The mainnet contract address and its deploy tx (0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) are already filled in. Keep either the `[IF HSP LIVE]` or the `[IF HSP NOT LIVE]` sentence; SUBMISSION.md says how to tell which.
 
 ## Before submit day (only Luis)
 - [ ] DoraHacks login → Register as Hacker on hskchainindia.

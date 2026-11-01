@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { parseEnv } from 'node:util';
 import { getAddress, isAddress, type Address } from 'viem';
 
 /**
@@ -46,9 +47,15 @@ const optionalAddress = (key: string): Address | undefined => {
   return getAddress(v);
 };
 
-/** Loads .env from the repo root when present (Node >= 20.12 has process.loadEnvFile). */
+/**
+ * Loads .env from the repo root when present, like process.loadEnvFile: what the caller already set wins. The one
+ * exception is MAINNET_OWNER_OK, which comes only from the caller's environment: a line in .env never grants it.
+ */
 export function loadDotEnv(path = '.env'): void {
-  if (existsSync(path)) process.loadEnvFile(path);
+  if (!existsSync(path)) return;
+  for (const [k, v] of Object.entries(parseEnv(readFileSync(path, 'utf8')))) {
+    if (k !== 'MAINNET_OWNER_OK' && process.env[k] === undefined) process.env[k] = v;
+  }
 }
 
 export function getNetwork(name: NetworkName, overrides: Partial<NetworkConfig> = {}): NetworkConfig {

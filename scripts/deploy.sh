@@ -4,14 +4,19 @@
 #
 #   scripts/deploy.sh hashkey-testnet
 #   MAINNET_OWNER_OK=yes scripts/deploy.sh hashkey     # ONLY after the owner approved the exact HSK amount
+#   MAINNET_OWNER_OK=yes scripts/deploy.sh hashkey --redeploy   # a SECOND mainnet contract: only with the owner's OK for it
 set -euo pipefail
 cd "$(dirname "$0")/.."
 NET="${1:-}"
+REDEPLOY=0
+if [[ $# -eq 2 && "$2" == "--redeploy" ]]; then REDEPLOY=1
+elif [[ $# -gt 1 ]]; then echo "usage: scripts/deploy.sh hashkey-testnet|hashkey [--redeploy]" >&2; exit 1; fi
 [[ -f .env ]] || { echo "no .env (cp .env.example .env and fill it)" >&2; exit 1; }
 CALLER_OWNER_OK="${MAINNET_OWNER_OK:-}"
 set -a; . ./.env; set +a
-# the caller's MAINNET_OWNER_OK wins over the (normally empty) line in .env, here and in Deploy.s.sol's own guard
-[[ -z "$CALLER_OWNER_OK" ]] || export MAINNET_OWNER_OK="$CALLER_OWNER_OK"
+# the mainnet OK comes only from the caller's environment, never from .env: here and in Deploy.s.sol's own guard
+# (exported even when empty, so forge's own .env loading cannot fill it in either)
+export MAINNET_OWNER_OK="$CALLER_OWNER_OK"
 
 case "$NET" in
   hashkey-testnet)
@@ -21,6 +26,11 @@ case "$NET" in
   hashkey)
     if [[ "${MAINNET_OWNER_OK:-}" != "yes" ]]; then
       echo "refusing to deploy on HashKey mainnet: set MAINNET_OWNER_OK=yes only after the owner approved the exact amount" >&2
+      exit 1
+    fi
+    # one mainnet contract: README, SUBMISSION and the demo all use the address in .env, and a new deploy would replace it
+    if [[ -n "${RECEIPTS_ADDRESS_MAINNET:-}" && "$REDEPLOY" != 1 ]]; then
+      echo "refusing to deploy on HashKey mainnet: RECEIPTS_ADDRESS_MAINNET is already $RECEIPTS_ADDRESS_MAINNET in .env (pass --redeploy only with the owner's OK for a second contract)" >&2
       exit 1
     fi
     RPC="${HASHKEY_RPC_URL:-https://mainnet.hsk.xyz}"; CHAIN=177
