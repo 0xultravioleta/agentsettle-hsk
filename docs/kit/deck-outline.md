@@ -33,14 +33,14 @@ Play the 60–90 s demo clip. Pause on the settle tx on explorer.hsk.xyz and on 
 
 ## Slide 5: How it works
 **On slide:**
-We added hashkey (chain 177) and hashkey-testnet (133) to Ultravioleta's Rust x402 facilitator, settling Bridged USDC (0x054e…8D0a) via EIP-3009. The agents sign with viem and call the facilitator through our x402 SDK. On the HSP rail, Agent A pays through HSP Agentic Payment (MCP) and signs locally after checking what the server prepared. AgentSettleReceipts is deployed on HashKey Chain mainnet at [CONTRACT_ADDRESS].
+We added hashkey (chain 177) and hashkey-testnet (133) to Ultravioleta's Rust x402 facilitator, settling Bridged USDC (0x054e…8D0a) via EIP-3009. The agents sign with viem and call the facilitator through our x402 SDK. On the HSP rail, Agent A pays through HSP Agentic Payment (MCP) and signs locally after checking what the server prepared. AgentSettleReceipts is deployed on HashKey Chain mainnet at 0xb8956dFe5819b9828b6D55315bFB871c443f08a1.
 
 **Speaker notes:**
 Architecture diagram. Point at the sponsor component first.
 
 ## Slide 6: Sponsor tech: HashKey Chain mainnet + HSP (HashKey Merchant API)
 **On slide:**
-- HashKey Chain mainnet (177): facilitator network `hashkey` (x402-rs #132, live in 2.52.0), USDC `0x054e…8D0a` via EIP-3009, `AgentSettleReceipts` at [CONTRACT_ADDRESS]
+- HashKey Chain mainnet (177): facilitator network `hashkey` (x402-rs #132, live in 2.52.0), USDC `0x054e…8D0a` via EIP-3009, `AgentSettleReceipts` at `0xb8956dFe5819b9828b6D55315bFB871c443f08a1`
 - HSP Agentic Payment (MCP): `src/rails/hsp-mcp.ts`, `src/agents/hsp-mcp-flow.ts`: `create_order` → `prepare_payment` → our field-by-field check of the EIP-712 data → Agent A signs → `finalize_payment` → `submit_payment` → `query_payment`, with a person confirming each step
 
 **Speaker notes:**
@@ -70,7 +70,7 @@ Concrete next steps with dates if possible.
 ## Slide 10: Team and links
 **On slide:**
 Luis, c0der · Ultravioleta DAO
-Repo · Video · Contract [CONTRACT_ADDRESS]
+Repo · Video · Contract 0xb8956dFe5819b9828b6D55315bFB871c443f08a1
 
 **Speaker notes:**
 Thank the sponsor. Show the repo link and the contract page.
