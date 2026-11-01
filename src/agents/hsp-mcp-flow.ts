@@ -201,8 +201,12 @@ export async function payViaHspMcp(opts: HspMcpFlowOptions): Promise<HspMcpFlowR
 
   // 7. the signature leaves this process only after the second yes: whoever holds it can execute the transfer until
   //    validBefore, so finalize_payment (which hands it to HSP) comes after the quote check and the approval
-  if (!(new Date(prep.quote_expires_at).getTime() > now().getTime())) return stop(`the quote expired at ${prep.quote_expires_at}: the signature was not sent (run again for a new quote)`);
+  const quoteLive = () => new Date(prep.quote_expires_at).getTime() > now().getTime();
+  const expired = () => stop(`the quote expired at ${prep.quote_expires_at}: the signature was not sent (run again for a new quote)`);
+  if (!quoteLive()) return expired();
   if (!(await human.approve(`Submit? ${summary}`))) return stop('submission not approved: the signature never left this process');
+  // the person may take longer than the quote: a late yes must not hand HSP a signature for an expired quote (30043)
+  if (!quoteLive()) return expired();
   let fin;
   try {
     fin = await mcp.finalizePayment(signature, prep);
