@@ -1,0 +1,12 @@
+# Supply-chain guard for @modelcontextprotocol/sdk's transitive packages (added 2026-11-01): new versions published
+# less than 14 days earlier are held at the newest older release. body-parser 2.4.0 and fast-uri 3.1.9 are that young
+# too, but they fix advisories in every older release, so they are pinned to the fixed versions instead.
+overrides:
+  body-parser: 2.4.0
+  encodeurl: 2.0.0
+  express-rate-limit: 8.7.1
+  fast-uri: 3.1.9
+  ip-address: 10.7.4
+  jose: 6.2.12
+  on-finished: 2.4.1
+  qs: 6.16.1

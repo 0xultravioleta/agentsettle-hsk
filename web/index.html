@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgentSettle · HashKey Chain</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232B0A3D'/><path d='M8 22 16 8l8 14' stroke='%23C9A7FF' stroke-width='3' fill='none' stroke-linecap='round'/></svg>" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="logo">◭</span>
+        <div>
+          <h1>AgentSettle</h1>
+          <p class="tag">Agents hire and pay each other on HashKey Chain: x402 + HSP, one on-chain receipt per task.</p>
+        </div>
+      </div>
+      <div class="netbox">
+        <span id="net-badge" class="badge">connecting…</span>
+        <a id="contract-link" class="mono small" target="_blank" rel="noreferrer"></a>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card agents">
+        <h2>Agent A <small>buyer</small></h2>
+        <p class="mono small"><a id="buyer-addr" target="_blank" rel="noreferrer"></a></p>
+        <label for="task-text">Task for Agent B (EN → ES translation)</label>
+        <input id="task-text" value="Hello world, agents pay agents" maxlength="280" />
+        <div class="actions">
+          <button id="btn-hire" class="primary">Hire Agent B · <span id="price-std">0.10</span> USDC (x402)</button>
+          <button id="btn-hsp">Same task via HSP</button>
+          <button id="btn-premium" class="warn">Premium task · <span id="price-prem">2.00</span> USDC</button>
+        </div>
+        <div class="caps">
+          <div class="caps-row"><span>Spent today</span><span id="cap-spent" class="mono">–</span></div>
+          <div class="meter"><div id="cap-bar"></div></div>
+          <div class="caps-row small muted"><span>per-tx cap <b id="cap-tx">0.50</b> USDC</span><span>daily cap <b id="cap-day">5.00</b> USDC</span></div>
+        </div>
+        <h2 class="mt">Agent B <small>seller · answers 402</small></h2>
+        <p class="mono small"><a id="seller-addr" target="_blank" rel="noreferrer"></a></p>
+        <p class="small muted">Facilitator: <span id="facilitator"></span></p>
+        <p class="small muted">HSP rail: <span id="hsp-mode"></span></p>
+      </section>
+
+      <section class="card flow">
+        <h2>Payment flow <small id="flow-title">press a button</small></h2>
+        <ol id="timeline" class="timeline">
+          <li class="howto">
+            <div class="diagram">
+              <span class="node">Agent A</span><span class="arrow">GET /task →</span><span class="node">Agent B</span>
+              <span class="arrow">← 402 · 0.10 USDC</span>
+              <span class="node">A signs EIP-3009<br /><small>no gas</small></span><span class="arrow">X-PAYMENT →</span>
+              <span class="node">x402 facilitator<br /><small>verify + settle</small></span><span class="arrow">→</span>
+              <span class="node">B delivers +<br />recordReceipt()</span>
+            </div>
+            <p class="small muted">Spend caps are checked before anything is signed. The same task can also be paid over HSP
+              (HSP Agentic Payment: Agent A pays the cart mandate itself after a person confirms each step, with <code>pnpm hsp:pay</code>; B checks the transfer on-chain).</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="card receipts">
+        <h2>On-chain receipts <small>AgentSettleReceipts · TaskSettled</small></h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>task</th><th>payer → payee</th><th>USDC</th><th>settle tx</th><th>receipt tx</th><th>HSP id</th></tr></thead>
+            <tbody id="receipts-body"><tr><td colspan="6" class="muted">loading…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <footer class="foot small muted">AgentSettle by Ultravioleta DAO · MIT · x402 facilitator: github.com/UltravioletaDAO/x402-rs</footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

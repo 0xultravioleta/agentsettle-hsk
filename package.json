@@ -1,0 +1,45 @@
+{
+  "name": "agentsettle-hsk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentSettle: agents hire and pay each other on HashKey Chain with x402 and HSP, with an on-chain receipt per paid task.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit && vite build web",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "contracts:build": "forge build",
+    "contracts:test": "forge test -vv",
+    "start": "tsx src/cli/serve.ts",
+    "demo": "tsx src/cli/demo.ts",
+    "facilitator:local": "tsx src/cli/facilitator.ts",
+    "hsp:keygen": "tsx src/cli/hsp-keygen.ts",
+    "hsp:pay": "tsx src/cli/hsp-pay.ts",
+    "web:dev": "vite web",
+    "web:build": "vite build web"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.5",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "hono": "4.13.14",
+    "uvd-x402-sdk": "2.106.0",
+    "viem": "2.57.13"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "4.1.12"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

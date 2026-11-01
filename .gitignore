@@ -1,0 +1,19 @@
+# secrets: keys live ONLY in .env (never committed)
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+web/dist/
+coverage/
+*.log
+.DS_Store
+
+# foundry
+out/
+cache/
+broadcast/
+
+# runtime state written by the demo (reset with scripts/reset.sh)
+data/
