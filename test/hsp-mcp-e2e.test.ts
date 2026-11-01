@@ -55,19 +55,31 @@ describe.skipIf(!canRun)('HSP Agentic Payment (MCP) on anvil', () => {
     await publicClientFor(chain.net).waitForTransactionReceipt({ hash });
     return hash;
   };
-  const scripted = (answers: Array<string | boolean>) => {
+  /** A scripted answer; { approve, afterMs } is a person who takes a while to say it. */
+  type Answer = string | boolean | { approve: boolean; afterMs: number };
+  const scripted = (answers: Answer[]) => {
     const prompts: string[] = [];
     const next = (q: string) => {
       prompts.push(q);
       if (!answers.length) throw new Error(`unexpected prompt: ${q}`);
       return answers.shift()!;
     };
-    const human: HumanConfirm = { ask: async (q) => String(next(q)), approve: async (q) => next(q) === true };
+    const human: HumanConfirm = {
+      ask: async (q) => String(next(q)),
+      approve: async (q) => {
+        const a = next(q);
+        if (typeof a === 'object') {
+          await new Promise((r) => setTimeout(r, a.afterMs));
+          return a.approve;
+        }
+        return a === true;
+      },
+    };
     return { human, prompts };
   };
-  const yes = () => ['AgentSettle', operator().address, true, true, true] as Array<string | boolean>;
+  const yes = () => ['AgentSettle', operator().address, true, true, true] as Answer[];
 
-  async function run(answers: Array<string | boolean>, fake: Partial<FakeHspMcpOptions> = {}, flow: { payer?: LocalAccount; operator?: LocalAccount; guard?: SpendGuard; amount?: bigint } = {}) {
+  async function run(answers: Answer[], fake: Partial<FakeHspMcpOptions> = {}, flow: { payer?: LocalAccount; operator?: LocalAccount; guard?: SpendGuard; amount?: bigint } = {}) {
     const f = fakeHspMcp({ chainConfig, networkName: 'local', broadcast, ...fake });
     const srv = await listen(f.app);
     const session = await connectHspMcp(`${srv.url}/`);
@@ -173,6 +185,16 @@ describe.skipIf(!canRun)('HSP Agentic Payment (MCP) on anvil', () => {
 
   it('a quote that expired while the person decided: the signature is not handed to HSP', async () => {
     const { r, f, last } = await run(['AgentSettle', operator().address, true, true], { tamper: (p) => (p.quote_expires_at = new Date(Date.now() - 1000).toISOString()) });
+    expect(r.ok).toBe(false);
+    expect(last).toMatch(/the quote expired .*: the signature was not sent/);
+    expect(f.calls).not.toContain('finalize_payment');
+    expect([...f.preps.values()].every((p) => p.signature === undefined)).toBe(true);
+  });
+
+  it('a yes that comes after the quote expired does not hand HSP the signature', async () => {
+    const { r, f, last } = await run(['AgentSettle', operator().address, true, true, { approve: true, afterMs: 1_500 }], {
+      tamper: (p) => (p.quote_expires_at = new Date(Date.now() + 1_000).toISOString()),
+    });
     expect(r.ok).toBe(false);
     expect(last).toMatch(/the quote expired .*: the signature was not sent/);
     expect(f.calls).not.toContain('finalize_payment');

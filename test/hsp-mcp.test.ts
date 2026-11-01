@@ -111,6 +111,15 @@ describe('checkTypedData: what we refuse to sign', () => {
     expect(checkTypedData(reordered, expect0)).toMatch(/not the EIP-3009 struct/);
   });
 
+  it('a struct with a field more or a field less is not the EIP-3009 struct', () => {
+    const longer = good();
+    longer.eip712.types.TransferWithAuthorization!.push({ name: 'memo', type: 'string' });
+    expect(checkTypedData(longer, expect0)).toMatch(/not the EIP-3009 struct/);
+    const shorter = good();
+    shorter.eip712.types.TransferWithAuthorization!.pop();
+    expect(checkTypedData(shorter, expect0)).toMatch(/not the EIP-3009 struct/);
+  });
+
   it('the cap edge: exactly price + 10% is signable (the payer may carry the gas fee)', () => {
     const prep = good();
     prep.token_total_raw = '110000';

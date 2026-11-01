@@ -50,7 +50,7 @@ Agent-to-agent commerce needs three things: a way to ask for payment over HTTP, 
 Agent A asks Agent B for a paid micro-task. B answers HTTP 402 with a USDC price on HashKey Chain mainnet (eip155:177). A checks its spend policy, signs an EIP-3009 authorization (no gas), and our x402 facilitator settles it on-chain. B delivers and writes a receipt to the AgentSettleReceipts contract on mainnet, linking the settlement tx, the payer and a hash of the work. [IF HSP LIVE] The same task also runs through HSP Agentic Payment, HashKey's MCP server, on testnet. B gets a cart mandate and A pays it itself. The server prepares the EIP-712 authorization, and A checks every field before signing with its own key: token, chain, payer, recipient, amount cap and validity. A person approves before signing, and again before the signature leaves for HSP. B delivers only after the mined transfer consumes that exact authorization, and the receipt carries the HSP payment request id. [IF HSP NOT LIVE] The HSP rail is built and tested, waiting for testnet USDC for its first QA payment. It uses HSP Agentic Payment, HashKey's MCP server: a cart mandate, an EIP-712 authorization checked field by field before A signs it, submission and payment queries. Per-transaction (0.50 USDC) and daily (5 USDC) caps keep the agent in bounds: a 2 USDC request is refused before anything is signed.
 
 ## How we built it
-We added hashkey (chain 177) and hashkey-testnet (133) to Ultravioleta's Rust x402 facilitator, settling Bridged USDC (0x054e…8D0a) via EIP-3009. The TypeScript agents use viem to sign and our x402 SDK (uvd-x402-sdk) to call the facilitator; the HSP rail talks to HSP Agentic Payment over MCP (Streamable HTTP, the official TypeScript SDK). No key goes to the server: A checks the EIP-712 authorization and signs it locally. We also built a rail for the HashKey Merchant REST API (HMAC-signed requests, an ES256K merchant JWT, signed webhooks) and kept it off the critical path. AgentSettleReceipts (Solidity, Foundry) is deployed on HashKey Chain mainnet at [CONTRACT_ADDRESS]. The receipt id is derived from the payment itself, so a retried delivery can never write a second receipt.
+We added hashkey (chain 177) and hashkey-testnet (133) to Ultravioleta's Rust x402 facilitator, settling Bridged USDC (0x054e…8D0a) via EIP-3009. The TypeScript agents use viem to sign and our x402 SDK (uvd-x402-sdk) to call the facilitator; the HSP rail talks to HSP Agentic Payment over MCP (Streamable HTTP, the official TypeScript SDK). No key goes to the server: A checks the EIP-712 authorization and signs it locally. We also built a rail for the HashKey Merchant REST API (HMAC-signed requests, an ES256K merchant JWT, signed webhooks) and kept it off the critical path. AgentSettleReceipts (Solidity, Foundry) is deployed on HashKey Chain mainnet at 0xb8956dFe5819b9828b6D55315bFB871c443f08a1. The receipt id is derived from the payment itself, so a retried delivery can never write a second receipt.
 
 ## Challenges we ran into
 A 60-hour window and a new chain. HashKey's USDC is EIP-3009 but its USDT has neither EIP-3009 nor permit, so we settled in USDC and checked every token's EIP-712 domain against the chain. Bridged USDC on mainnet can only be minted through Circle's bridge adapter (the on-chain pool holds cents), so even funding the demo took a route through Ethereum. HSP and x402 had to coexist in one receipt.
@@ -77,7 +77,7 @@ Agent Payments & A2A Settlement
 
 ### Contract address on HashKey Chain mainnet (required for demo eligibility)
 ```text
-[CONTRACT_ADDRESS]
+0xb8956dFe5819b9828b6D55315bFB871c443f08a1
 ```
 
 ### Organizer questions
@@ -89,7 +89,7 @@ Agent Payments & A2A Settlement
 
 | Placeholder | Source |
 |---|---|
-| `[CONTRACT_ADDRESS]` | mainnet deploy of `AgentSettleReceipts` (after the owner's OK); also in README.md |
+| ~~`[CONTRACT_ADDRESS]`~~ | filled: `0xb8956dFe5819b9828b6D55315bFB871c443f08a1` (deployed by W3 on 2026-11-01, tx 0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c, verified, https://explorer.hsk.xyz/address/0xb8956dFe5819b9828b6D55315bFB871c443f08a1) |
 | ~~`[TESTNET_CONTRACT_ADDRESS]`~~ | filled: `0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1` (verified, https://testnet-explorer.hskchain.net/address/0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1) |
 | `[REPO_URL]` | after the owner approves making the repo public |
 | ~~`[PR_URL]`~~ | filled: https://github.com/UltravioletaDAO/x402-rs/pull/132 (merged, live in 2.52.0) |
