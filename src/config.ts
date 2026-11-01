@@ -49,12 +49,13 @@ const optionalAddress = (key: string): Address | undefined => {
 
 /**
  * Loads .env from the repo root when present, like process.loadEnvFile: what the caller already set wins. The one
- * exception is MAINNET_OWNER_OK, which comes only from the caller's environment: a line in .env never grants it.
+ * exception is MAINNET_OWNER_OK, which comes only from the caller's environment: a line in .env never grants it, in
+ * any case (process.env ignores case on Windows).
  */
 export function loadDotEnv(path = '.env'): void {
   if (!existsSync(path)) return;
   for (const [k, v] of Object.entries(parseEnv(readFileSync(path, 'utf8')))) {
-    if (k !== 'MAINNET_OWNER_OK' && process.env[k] === undefined) process.env[k] = v;
+    if (k.toUpperCase() !== 'MAINNET_OWNER_OK' && process.env[k] === undefined) process.env[k] = v;
   }
 }
 

@@ -64,9 +64,27 @@ describe('deploy.sh on mainnet: the OK comes from the caller, and the deployed c
   it('testnet is not gated by its recorded address, and an unknown flag is refused', () => {
     const t = deploy(noKeys('RECEIPTS_ADDRESS_TESTNET=0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1\n'), ['hashkey-testnet']);
     expect(t.stderr).toMatch(/^TESTNET_OPERATOR_PRIVATE_KEY is empty in \.env$/m);
-    const u = deploy(noKeys(''), ['hashkey', '--force'], 'yes');
-    expect(u.status).toBe(1);
-    expect(u.stderr).toMatch(/^usage: scripts\/deploy\.sh hashkey-testnet\|hashkey \[--redeploy\]$/m);
-    expect(t.called + u.called).toBe('');
+    for (const flag of ['--force', '--re', '--redeploy=1', '--REDEPLOY']) {
+      const u = deploy(noKeys(`RECEIPTS_ADDRESS_MAINNET=${DEPLOYED}\n`), ['hashkey', flag], 'yes');
+      expect(u.status, flag).toBe(1);
+      expect(u.stderr).toMatch(/^usage: scripts\/deploy\.sh hashkey-testnet\|hashkey \[--redeploy\]$/m);
+      expect(u.called).toBe('');
+    }
+    expect(t.called).toBe('');
+  });
+
+  it('a line in .env cannot set the script\'s own CALLER_OWNER_OK, REDEPLOY or NET: it stops there', () => {
+    const cases: Array<[string, string | undefined]> = [
+      ['RECEIPTS_ADDRESS_MAINNET=\nCALLER_OWNER_OK=yes\n', undefined],
+      [`RECEIPTS_ADDRESS_MAINNET=${DEPLOYED}\nREDEPLOY=1\n`, 'yes'],
+      [`RECEIPTS_ADDRESS_MAINNET=${DEPLOYED}\nNET=hashkey-testnet\n`, 'yes'],
+    ];
+    for (const [rest, caller] of cases) {
+      const r = deploy(noKeys(rest), ['hashkey'], caller);
+      expect(r.status, rest).toBe(1);
+      expect(r.stderr).toMatch(/: (CALLER_OWNER_OK|REDEPLOY|NET): readonly variable$/m);
+      expect(r.stderr).not.toMatch(/PRIVATE_KEY is empty/);
+      expect(r.called).toBe('');
+    }
   });
 });

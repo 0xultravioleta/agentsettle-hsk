@@ -51,6 +51,25 @@ describe('config', () => {
     loadDotEnv(path);
     expect(process.env.AGENTSETTLE_DOTENV_PROBE).toBe('from-caller');
     expect(() => assertMainnetAllowed(getNetwork('hashkey'))).not.toThrow();
+    // an empty value from the caller is still the caller's: .env fills neither the OK nor any other key
+    process.env.AGENTSETTLE_DOTENV_PROBE = '';
+    process.env.MAINNET_OWNER_OK = '';
+    loadDotEnv(path);
+    expect(process.env.AGENTSETTLE_DOTENV_PROBE).toBe('');
+    expect(process.env.MAINNET_OWNER_OK).toBe('');
+    expect(() => assertMainnetAllowed(getNetwork('hashkey'))).toThrow(/refusing/);
+  });
+
+  it('.env cannot slip the OK in with another case of the name (process.env ignores case on Windows)', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'agentsettle-dotenv-')), '.env');
+    writeFileSync(path, 'mainnet_owner_ok=yes\nMainnet_Owner_Ok=yes\nAGENTSETTLE_DOTENV_PROBE=from-file\n');
+    delete process.env.MAINNET_OWNER_OK;
+    delete process.env.AGENTSETTLE_DOTENV_PROBE;
+    loadDotEnv(path);
+    expect(process.env.AGENTSETTLE_DOTENV_PROBE).toBe('from-file');
+    expect(process.env.mainnet_owner_ok).toBeUndefined();
+    expect(process.env.Mainnet_Owner_Ok).toBeUndefined();
+    expect(() => assertMainnetAllowed(getNetwork('hashkey'))).toThrow(/refusing/);
   });
 
   it('rejects a malformed receipts address from env', () => {

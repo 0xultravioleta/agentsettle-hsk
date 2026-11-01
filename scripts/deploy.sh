@@ -13,6 +13,8 @@ if [[ $# -eq 2 && "$2" == "--redeploy" ]]; then REDEPLOY=1
 elif [[ $# -gt 1 ]]; then echo "usage: scripts/deploy.sh hashkey-testnet|hashkey [--redeploy]" >&2; exit 1; fi
 [[ -f .env ]] || { echo "no .env (cp .env.example .env and fill it)" >&2; exit 1; }
 CALLER_OWNER_OK="${MAINNET_OWNER_OK:-}"
+# .env cannot reset these: a NET, REDEPLOY or CALLER_OWNER_OK line there stops the script instead of opening a gate
+readonly NET REDEPLOY CALLER_OWNER_OK
 set -a; . ./.env; set +a
 # the mainnet OK comes only from the caller's environment, never from .env: here and in Deploy.s.sol's own guard
 # (exported even when empty, so forge's own .env loading cannot fill it in either)
@@ -36,7 +38,7 @@ case "$NET" in
     RPC="${HASHKEY_RPC_URL:-https://mainnet.hsk.xyz}"; CHAIN=177
     VERIFIER_URL="https://hsk.blockscout.com/api/"; EXPLORER="https://explorer.hsk.xyz"
     KEY_VAR=OPERATOR_PRIVATE_KEY; OUT_VAR=RECEIPTS_ADDRESS_MAINNET ;;
-  *) echo "usage: scripts/deploy.sh hashkey-testnet|hashkey" >&2; exit 1 ;;
+  *) echo "usage: scripts/deploy.sh hashkey-testnet|hashkey [--redeploy]" >&2; exit 1 ;;
 esac
 
 KEY="${!KEY_VAR:-}"
