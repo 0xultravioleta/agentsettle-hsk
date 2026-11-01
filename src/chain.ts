@@ -178,22 +178,19 @@ export async function confirmTransfer(
     if (receipt.status !== 'success') return false;
     // without a nonce (HSP plain transfers) bind by time: the tx must be newer than the moment we asked to pay
     if (expect.afterBlock !== undefined && receipt.blockNumber <= expect.afterBlock) return false;
-    if (expect.nonce) {
-      // bind the tx to THIS authorization: an older payment of the same amount by the same payer does not count
-      const used = parseEventLogs({ abi: [AUTHORIZATION_USED_EVENT], logs: receipt.logs, eventName: 'AuthorizationUsed' });
-      const ours = used.some(
-        (l) => getAddress(l.address) === getAddress(net.usdc.address) && getAddress(l.args.authorizer) === getAddress(expect.from) && l.args.nonce.toLowerCase() === expect.nonce!.toLowerCase(),
-      );
-      if (!ours) return false;
-    }
     const transfers = parseEventLogs({ abi: [TRANSFER_EVENT], logs: receipt.logs, eventName: 'Transfer' });
-    return transfers.some(
-      (l) =>
-        getAddress(l.address) === getAddress(net.usdc.address) &&
-        getAddress(l.args.from) === getAddress(expect.from) &&
-        getAddress(l.args.to) === getAddress(expect.to) &&
-        l.args.value === expect.value,
+    const pays = (l: (typeof transfers)[number]) =>
+      getAddress(l.address) === getAddress(net.usdc.address) &&
+      getAddress(l.args.from) === getAddress(expect.from) &&
+      getAddress(l.args.to) === getAddress(expect.to) &&
+      l.args.value === expect.value;
+    if (!expect.nonce) return transfers.some(pays);
+    // bind the transfer to THIS authorization: FiatToken (and the mock) emit AuthorizationUsed(from, nonce) and then
+    // its Transfer as the very next log. Another transfer in the same tx (or an older payment) does not count.
+    const used = parseEventLogs({ abi: [AUTHORIZATION_USED_EVENT], logs: receipt.logs, eventName: 'AuthorizationUsed' }).filter(
+      (l) => getAddress(l.address) === getAddress(net.usdc.address) && getAddress(l.args.authorizer) === getAddress(expect.from) && l.args.nonce.toLowerCase() === expect.nonce!.toLowerCase(),
     );
+    return used.some((u) => transfers.some((t) => t.logIndex === u.logIndex + 1 && pays(t)));
   } catch {
     return false;
   }

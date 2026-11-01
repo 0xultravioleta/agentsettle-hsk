@@ -3,7 +3,7 @@ import { recoverTypedDataAddress, type Address } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { resultReport } from '../src/agents/hsp-mcp-flow.js';
 import { terminalHuman } from '../src/cli/prompt.js';
-import { HSP_MCP_TOOLS, HspToolError, checkTypedData, connectHspMcp, maxRawFor, selectToken, toSignable, type PreparedPayment } from '../src/rails/hsp-mcp.js';
+import { HSP_MCP_TOOLS, HspToolError, checkTypedData, connectHspMcp, hspPayNetwork, maxRawFor, selectToken, toSignable, type PreparedPayment } from '../src/rails/hsp-mcp.js';
 import { RECORDED_CHAIN_CONFIG, fakeHspMcp, recorded } from './fake-hsp-mcp.js';
 import { listen } from './helpers.js';
 
@@ -87,7 +87,8 @@ describe('checkTypedData: what we refuse to sign', () => {
     ['message.to', (p) => (p.eip712.message.to = other), /message.to .* not the confirmed pay_to/],
     ['token_total_raw not a number', (p) => (p.token_total_raw = '0.10'), /not a positive integer/],
     ['token_total_raw zero', (p) => ((p.token_total_raw = '0'), (p.eip712.message.value = '0')), /not a positive integer/],
-    ['value != token_total_raw', (p) => (p.eip712.message.value = '100001'), /message.value 100001 is not token_total_raw 100000/],
+    ['value above token_total_raw', (p) => (p.eip712.message.value = '100001'), /message.value 100001 is not token_total_raw 100000/],
+    ['value below token_total_raw', (p) => (p.eip712.message.value = '99999'), /message.value 99999 is not token_total_raw 100000/],
     ['over the cap', (p) => ((p.token_total_raw = '110001'), (p.eip712.message.value = '110001')), /over the cap of 110000/],
     ['validAfter', (p) => (p.eip712.message.validAfter = 'soon'), /validAfter soon is not an integer/],
     ['validBefore passed', (p) => (p.eip712.message.validBefore = String(t)), /has already passed/],
@@ -98,6 +99,16 @@ describe('checkTypedData: what we refuse to sign', () => {
     const prep = good();
     mutate(prep);
     expect(checkTypedData(prep, expect0)).toMatch(why);
+  });
+
+  it('the struct is compared field by field, so a server writing {type, name} is not refused', () => {
+    const prep = good();
+    prep.eip712.types.TransferWithAuthorization = prep.eip712.types.TransferWithAuthorization!.map(({ name, type }) => ({ type, name }));
+    expect(checkTypedData(prep, expect0)).toBeUndefined();
+    const reordered = good();
+    const f = reordered.eip712.types.TransferWithAuthorization!;
+    [f[0], f[1]] = [f[1]!, f[0]!];
+    expect(checkTypedData(reordered, expect0)).toMatch(/not the EIP-3009 struct/);
   });
 
   it('the cap edge: exactly price + 10% is signable (the payer may carry the gas fee)', () => {
@@ -131,6 +142,16 @@ describe('HSP MCP transport (Streamable HTTP, fake server replaying the recorded
     } finally {
       await srv.close();
     }
+  });
+});
+
+describe('which chain hsp:pay may pay on', () => {
+  it('HashKey testnet by default, Base Sepolia as the fallback, and never mainnet or anything else', () => {
+    expect(hspPayNetwork(undefined)).toBe('hashkey-testnet');
+    expect(hspPayNetwork(' ')).toBe('hashkey-testnet');
+    expect(hspPayNetwork('base-sepolia')).toBe('base-sepolia');
+    expect(() => hspPayNetwork('hashkey')).toThrow(/must be hashkey-testnet or base-sepolia, not hashkey/);
+    expect(() => hspPayNetwork('local')).toThrow(/not local/);
   });
 });
 

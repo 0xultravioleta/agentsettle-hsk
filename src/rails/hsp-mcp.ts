@@ -22,6 +22,16 @@ export const HSP_PENDING_AFTER_MS = 10 * 60_000;
 export const HSP_MAX_OVER_PRICE_PCT = 10n;
 /** validBefore must not reach further than this into the future. */
 export const HSP_MAX_VALIDITY_SECONDS = 3600;
+/** The chains `pnpm hsp:pay` may pay on: HSP QA's HashKey testnet, and Base Sepolia as the fallback. Never mainnet. */
+export const HSP_PAY_NETWORKS = ['hashkey-testnet', 'base-sepolia'] as const;
+export type HspPayNetwork = (typeof HSP_PAY_NETWORKS)[number];
+
+/** HSP_MCP_NETWORK -> the chain to pay on (default hashkey-testnet); anything else, mainnet included, is refused. */
+export function hspPayNetwork(value: string | undefined): HspPayNetwork {
+  const v = value?.trim() || 'hashkey-testnet';
+  if (!(HSP_PAY_NETWORKS as readonly string[]).includes(v)) throw new Error(`HSP_MCP_NETWORK must be ${HSP_PAY_NETWORKS.join(' or ')}, not ${v}`);
+  return v as HspPayNetwork;
+}
 
 export interface ChainNetwork {
   chain_id: number;
@@ -207,6 +217,12 @@ const TRANSFER_WITH_AUTHORIZATION = [
   { name: 'nonce', type: 'bytes32' },
 ];
 
+/** Field by field: the same names and types in the same order (member order is part of the hash; key order is not). */
+const isTransferWithAuthorization = (fields: unknown) =>
+  Array.isArray(fields) &&
+  fields.length === TRANSFER_WITH_AUTHORIZATION.length &&
+  fields.every((f, i) => f && typeof f === 'object' && f.name === TRANSFER_WITH_AUTHORIZATION[i]!.name && f.type === TRANSFER_WITH_AUTHORIZATION[i]!.type);
+
 const uint = (v: unknown): bigint | undefined => {
   if (typeof v === 'bigint') return v >= 0n ? v : undefined;
   if (typeof v === 'number') return Number.isSafeInteger(v) && v >= 0 ? BigInt(v) : undefined;
@@ -232,7 +248,7 @@ export function checkTypedData(prep: PreparedPayment, x: TypedDataExpectation): 
   const d = prep.eip712;
   if (!d || typeof d !== 'object' || !d.domain || !d.message || !d.types) return 'eip712 is missing domain, types or message';
   if (d.primaryType !== 'TransferWithAuthorization') return `primaryType is ${d.primaryType}, not TransferWithAuthorization`;
-  if (JSON.stringify(d.types.TransferWithAuthorization) !== JSON.stringify(TRANSFER_WITH_AUTHORIZATION)) return 'types.TransferWithAuthorization is not the EIP-3009 struct';
+  if (!isTransferWithAuthorization(d.types.TransferWithAuthorization)) return 'types.TransferWithAuthorization is not the EIP-3009 struct';
   const extra = Object.keys(d.domain).filter((k) => !['name', 'version', 'chainId', 'verifyingContract'].includes(k));
   if (extra.length) return `domain has unexpected fields: ${extra.join(', ')}`;
   if (uint(d.domain.chainId) !== BigInt(x.chainId)) return `domain.chainId is ${String(d.domain.chainId)}, not ${x.chainId}`;

@@ -6,6 +6,7 @@ import { keccak256, parseSignature, toHex, type Address, type Hex, type LocalAcc
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { payViaHspMcp, type HumanConfirm } from '../src/agents/hsp-mcp-flow.js';
 import { ERC20_EIP3009_ABI, publicClientFor, walletClientFor } from '../src/chain.js';
+import { getNetwork } from '../src/config.js';
 import { ensureLocalChain, type LocalChain } from '../src/local-chain.js';
 import { connectHspMcp } from '../src/rails/hsp-mcp.js';
 import { listReceipts } from '../src/receipts.js';
@@ -114,6 +115,7 @@ describe.skipIf(!canRun)('HSP Agentic Payment (MCP) on anvil', () => {
   it('when the payer carries the gas fee: up to price + 10% is paid, more is refused before signing', async () => {
     const ok = await run(yes(), { gasFeeAdvanced: false, gasRaw: 5_000n });
     expect(ok.r.ok, ok.last).toBe(true);
+    expect(ok.r.steps.find((s) => s.step === 'signed')!.title).toMatch(/the network fee is inside token_total_raw/);
     const over = await run(['AgentSettle', operator().address, true], { gasFeeAdvanced: false, gasRaw: 10_001n });
     expect(over.r.ok).toBe(false);
     expect(over.last).toMatch(/REFUSED to sign .* over the cap of 110000/);
@@ -130,7 +132,7 @@ describe.skipIf(!canRun)('HSP Agentic Payment (MCP) on anvil', () => {
     expect(await balance(buyer().address)).toBe(before);
   });
 
-  it('every "no" stops where it is asked: payer (no order), signature (nothing signed or booked), submission (nothing sent)', async () => {
+  it('every "no" stops where it is asked: payer (no order), signature (nothing signed or booked), submission (the signature never reaches HSP)', async () => {
     const payerNo = await run(['AgentSettle', operator().address, false]);
     expect(payerNo.f.calls).toEqual(['get_chain_config']);
     const signNo = await run(['AgentSettle', operator().address, true, false]);
@@ -139,9 +141,10 @@ describe.skipIf(!canRun)('HSP Agentic Payment (MCP) on anvil', () => {
     expect(signNo.last).toMatch(/nothing was signed/);
     const before = await balance(buyer().address);
     const submitNo = await run(['AgentSettle', operator().address, true, true, false]);
-    expect(submitNo.f.calls).toContain('finalize_payment');
+    expect(submitNo.f.calls).not.toContain('finalize_payment');
     expect(submitNo.f.calls).not.toContain('submit_payment');
-    expect(submitNo.last).toMatch(/was not sent/);
+    expect([...submitNo.f.preps.values()].every((p) => p.signature === undefined)).toBe(true);
+    expect(submitNo.last).toMatch(/the signature never left this process/);
     expect(await balance(buyer().address)).toBe(before);
   });
 
@@ -163,13 +166,17 @@ describe.skipIf(!canRun)('HSP Agentic Payment (MCP) on anvil', () => {
     const otherPayTo = await run(['AgentSettle', operator().address, true], { rewrite: (tool, out) => tool === 'get_order' && (out.method_data[0].pay_to = thief) });
     expect(otherPayTo.last).toMatch(/get_order has no USDC method paying/);
     expect(otherPayTo.f.calls).not.toContain('prepare_payment');
+    const otherChain = await run(['AgentSettle', operator().address, true], { rewrite: (tool, out) => tool === 'get_order' && (out.method_data[0].chain_id = 84532) });
+    expect(otherChain.last).toMatch(/get_order has no USDC method paying .* on chain 31337/);
+    expect(otherChain.f.calls).not.toContain('prepare_payment');
   });
 
-  it('a quote that expired while the person decided is not submitted', async () => {
+  it('a quote that expired while the person decided: the signature is not handed to HSP', async () => {
     const { r, f, last } = await run(['AgentSettle', operator().address, true, true], { tamper: (p) => (p.quote_expires_at = new Date(Date.now() - 1000).toISOString()) });
     expect(r.ok).toBe(false);
-    expect(last).toMatch(/the quote expired .*: not submitting/);
-    expect(f.calls).not.toContain('submit_payment');
+    expect(last).toMatch(/the quote expired .*: the signature was not sent/);
+    expect(f.calls).not.toContain('finalize_payment');
+    expect([...f.preps.values()].every((p) => p.signature === undefined)).toBe(true);
   });
 
   it('a payer without enough of the token is not asked to sign', async () => {
@@ -222,6 +229,22 @@ describe.skipIf(!canRun)('HSP Agentic Payment (MCP) on anvil', () => {
     expect(r.steps.at(-1)!.step).toBe('spend_denied');
     expect(f.calls).not.toContain('finalize_payment');
     expect(guard.spentToday()).toBe(50_000n);
+  });
+
+  it('mainnet is refused before the server is even asked', async () => {
+    const was = process.env.MAINNET_OWNER_OK;
+    delete process.env.MAINNET_OWNER_OK;
+    try {
+      const f = fakeHspMcp({ chainConfig, networkName: 'local', broadcast });
+      const calls: string[] = [];
+      await expect(
+        payViaHspMcp({ payNet: getNetwork('hashkey'), operator: operator(), payer: buyer(), guard: new SpendGuard(undefined, new MemoryLedger()), call: async (n) => (calls.push(n), {}), human: scripted([]).human, text: 'x' }),
+      ).rejects.toThrow(/refusing to run on HashKey mainnet/);
+      expect(calls).toEqual([]);
+      expect(f.calls).toEqual([]);
+    } finally {
+      if (was !== undefined) process.env.MAINNET_OWNER_OK = was;
+    }
   });
 
   it('the daily cap applies before the server is even asked', async () => {

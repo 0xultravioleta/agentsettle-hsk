@@ -56,12 +56,5 @@ forge verify-contract "$ADDR" contracts/AgentSettleReceipts.sol:AgentSettleRecei
   --chain "$CHAIN" --verifier blockscout --verifier-url "$VERIFIER_URL" \
   --constructor-args "$(cast abi-encode 'constructor(address)' "$FROM")" --watch || echo "verification failed: retry the forge verify-contract line by hand" >&2
 
-python3 - "$OUT_VAR" "$ADDR" <<'PY'
-import sys, re
-var, addr = sys.argv[1], sys.argv[2]
-p = '.env'
-s = open(p).read()
-s = re.sub(rf'^{var}=.*$', f'{var}={addr}', s, flags=re.M) if re.search(rf'^{var}=', s, flags=re.M) else s + f'\n{var}={addr}\n'
-open(p, 'w').write(s)
-PY
+python3 scripts/set-env-var.py .env "$OUT_VAR" "$ADDR"
 echo "$OUT_VAR=$ADDR written to .env"

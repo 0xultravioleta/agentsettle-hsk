@@ -9,7 +9,7 @@ export function hasBinary(bin: string): boolean {
 }
 
 export function ensureForgeArtifacts(): void {
-  if (existsSync('out/MockEIP3009.sol/MockEIP3009.json') && existsSync('out/AgentSettleReceipts.sol/AgentSettleReceipts.json')) return;
+  if (['MockEIP3009', 'AgentSettleReceipts', 'BatchCaller'].every((c) => existsSync(`out/${c}.sol/${c}.json`))) return;
   const r = spawnSync('forge', ['build'], { stdio: 'inherit' });
   if (r.status !== 0) throw new Error('forge build failed');
 }

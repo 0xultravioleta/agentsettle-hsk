@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { getAddress, isAddress, recoverTypedDataAddress, type Hex, type LocalAccount } from 'viem';
-import { explorerTx, type NetworkConfig } from '../config.js';
+import { assertMainnetAllowed, explorerTx, type NetworkConfig } from '../config.js';
 import { ERC20_EIP3009_ABI, confirmTransfer, publicClientFor } from '../chain.js';
 import { SpendDeniedError, fmtUsdc, type SpendGuard } from '../spend-guard.js';
 import { recordReceipt, resultHashOf, taskIdFor } from '../receipts.js';
@@ -106,6 +106,8 @@ export async function payViaHspMcp(opts: HspMcpFlowOptions): Promise<HspMcpFlowR
   const mcp = new HspMcpClient(opts.call);
   const taskRef = opts.taskRef ?? `${now().getTime().toString(36)}${randomBytes(4).toString('hex')}`;
 
+  // HSP Agentic Payment is only approved on testnets; the same guard as every other mainnet path
+  assertMainnetAllowed(payNet);
   const pre = opts.guard.check(amount);
   if (!pre.allowed) {
     push('spend_denied', `Spend policy DENIED: ${pre.reason}`, { code: pre.code });
@@ -194,17 +196,23 @@ export async function payViaHspMcp(opts: HspMcpFlowOptions): Promise<HspMcpFlowR
   const typed = toSignable(prep.eip712);
   const signature = await opts.payer.signTypedData(typed);
   if ((await recoverTypedDataAddress({ ...typed, signature })) !== payer) return stop('the signature does not recover to the payer: not submitting');
-  push('signed', `Agent A signed the EIP-712 authorization (${typed.message.nonce.slice(0, 10)}…), gas paid by Agent A: 0`, { nonce: typed.message.nonce });
+  const fee = gasAdvanced === false ? 'the network fee is inside token_total_raw (gas_fee_advanced=false)' : 'gas paid by Agent A: 0';
+  push('signed', `Agent A signed the EIP-712 authorization (${typed.message.nonce.slice(0, 10)}…) locally; ${fee}`, { nonce: typed.message.nonce });
+
+  // 7. the signature leaves this process only after the second yes: whoever holds it can execute the transfer until
+  //    validBefore, so finalize_payment (which hands it to HSP) comes after the quote check and the approval
+  if (!(new Date(prep.quote_expires_at).getTime() > now().getTime())) return stop(`the quote expired at ${prep.quote_expires_at}: the signature was not sent (run again for a new quote)`);
+  if (!(await human.approve(`Submit? ${summary}`))) return stop('submission not approved: the signature never left this process');
   let fin;
   try {
     fin = await mcp.finalizePayment(signature, prep);
   } catch (err) {
-    return stop(`HSP finalize_payment failed: ${err instanceof Error ? err.message : String(err)}; nothing was submitted`);
+    const until = new Date(Number(typed.message.validBefore) * 1000).toISOString();
+    return stop(`HSP finalize_payment failed: ${err instanceof Error ? err.message : String(err)}. The signature may have reached HSP; it can only pay ${total} raw units to Agent B (${payTo}) and expires at ${until}`, { pending: ids });
   }
-  if (!(new Date(prep.quote_expires_at).getTime() > now().getTime())) return stop(`the quote expired at ${prep.quote_expires_at}: not submitting (run again for a new quote)`);
-  if (!(await human.approve(`Submit? ${summary}`))) return stop('submission not approved: the signed authorization was not sent');
+  push('hsp_check', `Handed to HSP for submission: ${summary}`, { payTo, payer, tokenTotalRaw: prep.token_total_raw });
 
-  // 7. submit the mandate exactly as finalize_payment returned it
+  // 8. submit the mandate exactly as finalize_payment returned it
   try {
     await mcp.submitPayment(fin.payment_mandate_json);
   } catch (err) {
@@ -213,7 +221,7 @@ export async function payViaHspMcp(opts: HspMcpFlowOptions): Promise<HspMcpFlowR
   }
   push('hsp_submitted', 'HSP submit_payment sent; polling query_payment', ids);
 
-  // 8. query every 15 s until safe / finalized / failed; after 10 min report "Pending confirmation"
+  // 9. query every 15 s until safe / finalized / failed; after 10 min report "Pending confirmation"
   const pollMs = opts.pollMs ?? HSP_POLL_MS;
   const deadline = now().getTime() + (opts.pendingAfterMs ?? HSP_PENDING_AFTER_MS);
   let q: PaymentQuery | undefined;
@@ -235,7 +243,7 @@ export async function payViaHspMcp(opts: HspMcpFlowOptions): Promise<HspMcpFlowR
   push('hsp_payment', `HSP ${statusLine(q)} · attribution_verified=${q.attribution_verified}`, { ...ids, tx, attributionVerified: q.attribution_verified }, tx ? explorerTx(payNet, tx) : undefined);
   if (!(HSP_ON_CHAIN_STATES as readonly string[]).includes(q.status)) return stop(`HSP ${q.status}: not delivering`, { report });
 
-  // 9. never on the gateway's word: the mined tx must consume OUR authorization and move exactly what we signed
+  // 10. never on the gateway's word: the mined tx must consume OUR authorization and move exactly what we signed
   if (!tx) return stop('HSP reports the payment on-chain without a tx_signature: not delivering', { report });
   const p = q.payment;
   if (!p.payer_address || !isAddress(p.payer_address, { strict: false }) || getAddress(p.payer_address) !== payer) return stop(`payer_address is ${p.payer_address}, not ${payer}: not delivering`, { report });

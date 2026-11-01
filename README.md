@@ -36,9 +36,10 @@ On top of that, an autonomous buyer needs **guardrails**, so a bug or a maliciou
      - from the confirmed payer to the confirmed `pay_to`, for exactly `token_total_raw`;
      - at most the price + 10%, valid for at most an hour.
    - A also checks its balance. The person approves `pay_to`, payer and `token_total_raw`, then A signs with its own key, which never goes to the server.
-   - `finalize_payment`, then a second approval, then `submit_payment`. The gateway broadcasts the transfer.
+   - A second approval comes before the signature leaves the process: whoever holds it can execute the transfer until `validBefore`. A "no", or an expired quote, means it is never sent.
+   - Then `finalize_payment` hands it to HSP and `submit_payment` submits the mandate unchanged. The gateway broadcasts the transfer.
    - `query_payment` runs every 15 s until `payment-safe`, `payment-finalized` or `payment-failed`, and reports `attribution_verified`. After 10 minutes it reports "Pending confirmation".
-   - B delivers only after the mined tx consumes **that** authorization (`AuthorizationUsed`) and moves exactly `token_total_raw` from A to B. The receipt carries the HSP `payment_request_id` as `hspPaymentId`.
+   - B delivers only after the mined tx consumes **that** authorization and moves exactly `token_total_raw` from A to B: the `Transfer` must be the log right after its `AuthorizationUsed`. The receipt carries the HSP `payment_request_id` as `hspPaymentId`.
 8. When A is asked for 2 USDC, the per-transaction cap **refuses before anything is signed**. This is shown in the demo.
 
 ```mermaid
@@ -123,7 +124,7 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 - **The seller checks every payment against its own price,** not against the buyer's copy. It delivers only when three things hold:
   - the facilitator verified the payment;
   - the facilitator settled it;
-  - the mined transaction shows `AuthorizationUsed(payer, nonce)` and the exact USDC transfer to the seller. A facilitator's word alone is not enough.
+  - the mined transaction shows `AuthorizationUsed(payer, nonce)` and, as the very next log, the exact USDC transfer to the seller. Another transfer in the same transaction does not count, and a facilitator's word alone is not enough.
 - **A retried `X-PAYMENT`** (for example, after a lost response) gets the same delivery back: no second charge and no second receipt. The same authorization reused for a different task gets `409`, never a new `402`.
 - **`taskId` is derived from the payment** (chain, payer, EIP-3009 nonce). A retried delivery therefore cannot write a second receipt: the contract reverts with `exists`.
 - **The console API (`/api/*`) only answers the console itself.** It requires a JSON body, a same-origin `Origin`/`Sec-Fetch-Site`, and our own `Host`, which stops DNS rebinding.
