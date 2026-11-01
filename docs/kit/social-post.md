@@ -13,9 +13,9 @@ BUIDL for HashKey Chain Horizon: [BUIDL_URL]
 ```text
 2/ How it works: Agent B answers HTTP 402 with a USDC price. Agent A signs an EIP-3009 authorization (no gas), our facilitator settles it on chain 177, and B writes a receipt to AgentSettleReceipts. Caps: 0.50 USDC per tx, 5 per day.
 
-3/ [IF HSP LIVE] The same task also runs over HSP, HashKey's merchant API: a signed cart mandate, paid at the HSP checkout from a personal wallet, and B checks the record and the transfer on-chain before delivering.
+3/ [IF HSP LIVE] The same task also runs over HSP Agentic Payment (MCP): the agent checks every field the server asks it to sign, a person approves, and B delivers only once that transfer is on-chain.
 
-4/ What's next: agent-to-agent HSP payments without a checkout page, KYC-gated tasks and EAS-attested receipts.
+4/ What's next: HSP payments under a pre-approved spending policy, KYC-gated tasks and EAS-attested receipts.
 
 5/ Repo: [REPO_URL] · Video: [VIDEO_URL]
 ```

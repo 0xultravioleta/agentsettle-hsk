@@ -176,7 +176,7 @@ export class MerchantHspRail implements HspRail {
 export function createHspRail(net: NetworkConfig, cfg: HspConfig): HspRail {
   if (net.name !== 'hashkey-testnet') return new StubHspRail('HSP runs against the HashKey Merchant QA gateway on hashkey-testnet only');
   const missing = [!cfg.appKey && 'app_key', !cfg.appSecret && 'app_secret', !cfg.merchantPrivateKeyPem && 'merchant key'].filter(Boolean);
-  if (missing.length) return new StubHspRail(`waiting for the HashKey Merchant credentials (${missing.join(', ')})`);
+  if (missing.length) return new StubHspRail(`HSP Agentic Payment runs at a terminal with \`pnpm hsp:pay\`, where a person confirms each step; this REST rail waits for the HashKey Merchant credentials (${missing.join(', ')})`);
   const client = new MerchantClient({ baseUrl: cfg.baseUrl ?? MERCHANT_QA_URL, creds: { appKey: cfg.appKey!, appSecret: cfg.appSecret! } });
   return new MerchantHspRail(net, client, { name: cfg.merchantName ?? 'AgentSettle', privateKeyPem: cfg.merchantPrivateKeyPem! }, cfg.appSecret!);
 }

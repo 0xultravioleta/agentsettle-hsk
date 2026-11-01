@@ -19,11 +19,13 @@
     "demo": "tsx src/cli/demo.ts",
     "facilitator:local": "tsx src/cli/facilitator.ts",
     "hsp:keygen": "tsx src/cli/hsp-keygen.ts",
+    "hsp:pay": "tsx src/cli/hsp-pay.ts",
     "web:dev": "vite web",
     "web:build": "vite build web"
   },
   "dependencies": {
     "@hono/node-server": "2.1.5",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "hono": "4.13.14",
     "uvd-x402-sdk": "2.106.0",
     "viem": "2.57.13"

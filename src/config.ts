@@ -1,8 +1,11 @@
 import { existsSync } from 'node:fs';
 import { getAddress, isAddress, type Address } from 'viem';
 
-/** Networks the demo runs on. `local` is anvil with the EIP-3009 mock (offline, CI and rehearsal). */
-export type NetworkName = 'hashkey' | 'hashkey-testnet' | 'local';
+/**
+ * Networks the demo runs on. `local` is anvil with the EIP-3009 mock (offline, CI and rehearsal). `base-sepolia` is
+ * only the fallback chain for HSP Agentic Payment (HSP_MCP_NETWORK), never a `--network` of the demo.
+ */
+export type NetworkName = 'hashkey' | 'hashkey-testnet' | 'local' | 'base-sepolia';
 
 export interface UsdcToken {
   address: Address;
@@ -85,6 +88,23 @@ export function getNetwork(name: NetworkName, overrides: Partial<NetworkConfig> 
         mainnet: false,
         ...overrides,
       };
+    case 'base-sepolia':
+      return {
+        name,
+        chainId: 84532,
+        caip2: 'eip155:84532',
+        rpcUrl: env('BASE_SEPOLIA_RPC_URL') ?? 'https://sepolia.base.org',
+        explorer: 'https://sepolia.basescan.org',
+        usdc: {
+          // Circle's testnet USDC, the eip3009 token HSP's get_chain_config lists on 84532.
+          address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+          decimals: 6,
+          eip712: { name: 'USDC', version: '2' },
+        },
+        receiptsAddress: optionalAddress('RECEIPTS_ADDRESS_BASE_SEPOLIA'),
+        mainnet: false,
+        ...overrides,
+      };
     case 'local':
       return {
         name,
@@ -120,7 +140,8 @@ export function explorerAddress(net: NetworkConfig, address: string): string | u
 /** Env var names of the two agent keys per network (values live only in .env). */
 export function keyEnvNames(name: NetworkName): { operator: string; buyer: string } {
   if (name === 'hashkey') return { operator: 'OPERATOR_PRIVATE_KEY', buyer: 'BUYER_PRIVATE_KEY' };
-  if (name === 'hashkey-testnet') return { operator: 'TESTNET_OPERATOR_PRIVATE_KEY', buyer: 'TESTNET_BUYER_PRIVATE_KEY' };
+  // the testnet wallets (W5, W6) are the same keys on Base Sepolia, the HSP fallback chain
+  if (name === 'hashkey-testnet' || name === 'base-sepolia') return { operator: 'TESTNET_OPERATOR_PRIVATE_KEY', buyer: 'TESTNET_BUYER_PRIVATE_KEY' };
   return { operator: 'LOCAL_OPERATOR_PRIVATE_KEY', buyer: 'LOCAL_BUYER_PRIVATE_KEY' };
 }
 

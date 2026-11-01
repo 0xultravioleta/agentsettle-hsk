@@ -111,7 +111,7 @@ export const RECEIPTS_ABI = [
 export function viemChain(net: NetworkConfig): Chain {
   return defineChain({
     id: net.chainId,
-    name: net.name === 'hashkey' ? 'HashKey Chain' : net.name === 'hashkey-testnet' ? 'HashKey Chain Testnet' : 'Local (anvil)',
+    name: net.name === 'hashkey' ? 'HashKey Chain' : net.name === 'hashkey-testnet' ? 'HashKey Chain Testnet' : net.name === 'base-sepolia' ? 'Base Sepolia' : 'Local (anvil)',
     nativeCurrency: { name: 'HSK', symbol: 'HSK', decimals: 18 },
     rpcUrls: { default: { http: [net.rpcUrl] } },
     ...(net.explorer ? { blockExplorers: { default: { name: 'Blockscout', url: net.explorer } } } : {}),

@@ -2,7 +2,7 @@
 
 
 - **URL:** https://dorahacks.io/hackathon/hskchainindia/detail → Submit BUIDL
-- **Deadline:** Mon Nov 2, 2026, 21:30 IST = **16:00 UTC** = 11:00 AM EST (Nov 3, 00:00 Beijing). It covers registration and submission. DoraHacks closes the form automatically at that time and takes no late submissions. Read from the DoraHacks page on Nov 1, 2026: its countdown and timeline end at 2026-11-02 16:00 UTC. One older section of the same page still says Nov 1, 21:30 IST (16:00 UTC), so submitting before Nov 1, 16:00 UTC is the safe choice.
+- **Deadline:** Mon Nov 2, 2026, 21:30 IST = **16:00 UTC** = 11:00 AM EST (Nov 3, 00:00 Beijing). It covers registration and submission. DoraHacks closes the form automatically at that time and takes no late submissions. Read from the DoraHacks page on Nov 1, 2026: its countdown and timeline end at 2026-11-02 16:00 UTC. An older section of the page says Nov 1, 21:30 IST, but at 16:06 UTC on Nov 1 the page still showed "23 hours left", so Nov 2, 16:00 UTC is the cut-off.
 - **Format:** remote. The BUIDL is submitted on DoraHacks and the presentation is online. Per the page, the venue is Mumbai and online demo participants get a fixed time slot (missing it forfeits the demo). Selected pitch teams are announced Nov 3; Demo Day is Nov 4.
 - **Copy from:** `SUBMISSION.md` at the repo root (in form order), video from `video-script.md`, deck PDF from `deck-outline.md`.
 

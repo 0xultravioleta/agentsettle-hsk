@@ -48,15 +48,20 @@ try {
   print(denied.steps);
   if (denied.denied?.code !== 'PER_TX_CAP') failures++;
 
-  console.log(`\n[HSP] same task over HSP (${rt.hsp.mode === 'merchant' ? 'HashKey Merchant QA gateway' : rt.hsp.mode})`);
-  const h = await hireViaHsp(rt, args.text, {
-    waitMs: args.hspWait * 1000,
-    onOrder: (o) => {
-      if (o.paymentUrl) console.log(`  checkout: ${o.paymentUrl}\n  pay it from your own wallet on ${rt.net.name}; Agent B checks the record and the transfer on-chain (waiting up to ${args.hspWait} s)`);
-    },
-  });
-  print(h.steps);
-  if (rt.hsp.mode === 'merchant' && !h.ok) failures++;
+  if (rt.net.name === 'hashkey-testnet') {
+    // HSP Agentic Payment asks a person to confirm each value, so it runs on its own, once: pnpm hsp:pay
+    console.log('\n[HSP] same task over HSP Agentic Payment (MCP): run `pnpm hsp:pay` at a terminal; it asks you to confirm each step');
+  } else {
+    console.log(`\n[HSP] same task over HSP (${rt.hsp.mode === 'merchant' ? 'HashKey Merchant QA gateway' : rt.hsp.mode})`);
+    const h = await hireViaHsp(rt, args.text, {
+      waitMs: args.hspWait * 1000,
+      onOrder: (o) => {
+        if (o.paymentUrl) console.log(`  checkout: ${o.paymentUrl}\n  pay it from your own wallet on ${rt.net.name}; Agent B checks the record and the transfer on-chain (waiting up to ${args.hspWait} s)`);
+      },
+    });
+    print(h.steps);
+    if (rt.hsp.mode === 'merchant' && !h.ok) failures++;
+  }
 } finally {
   server.close();
   rt.close();

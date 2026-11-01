@@ -33,7 +33,7 @@ Play the 60–90 s demo clip. Pause on the settle tx on explorer.hsk.xyz and on 
 
 ## Slide 5: How it works
 **On slide:**
-We added hashkey (chain 177) and hashkey-testnet (133) to Ultravioleta's Rust x402 facilitator, settling Bridged USDC (0x054e…8D0a) via EIP-3009. The agents sign with viem and call the facilitator through our x402 SDK. The HSP rail calls the HashKey Merchant API directly. AgentSettleReceipts is deployed on HashKey Chain mainnet at [CONTRACT_ADDRESS].
+We added hashkey (chain 177) and hashkey-testnet (133) to Ultravioleta's Rust x402 facilitator, settling Bridged USDC (0x054e…8D0a) via EIP-3009. The agents sign with viem and call the facilitator through our x402 SDK. On the HSP rail, Agent A pays through HSP Agentic Payment (MCP) and signs locally after checking what the server prepared. AgentSettleReceipts is deployed on HashKey Chain mainnet at [CONTRACT_ADDRESS].
 
 **Speaker notes:**
 Architecture diagram. Point at the sponsor component first.
@@ -41,10 +41,10 @@ Architecture diagram. Point at the sponsor component first.
 ## Slide 6: Sponsor tech: HashKey Chain mainnet + HSP (HashKey Merchant API)
 **On slide:**
 - HashKey Chain mainnet (177): facilitator network `hashkey` (x402-rs #132, live in 2.52.0), USDC `0x054e…8D0a` via EIP-3009, `AgentSettleReceipts` at [CONTRACT_ADDRESS]
-- HSP: `src/rails/hsp-merchant.ts`: one-time cart mandates (`POST /api/v1/merchant/orders`) with an ES256K merchant JWT, payment queries (`GET /api/v1/merchant/payments`), signed webhooks (`POST /hsp/webhook`), HMAC-SHA256 on every request
+- HSP Agentic Payment (MCP): `src/rails/hsp-mcp.ts`, `src/agents/hsp-mcp-flow.ts`: `create_order` → `prepare_payment` → our field-by-field check of the EIP-712 data → Agent A signs → `finalize_payment` → `submit_payment` → `query_payment`, with a person confirming each step
 
 **Speaker notes:**
-Judges score sponsor usage heavily. Show the file names and one settle tx hash. [IF HSP LIVE] Show the HSP payment record and its tx. [IF HSP NOT LIVE] Say the rail is built and tested, and waits for the QA gateway credentials.
+Judges score sponsor usage heavily. Show the file names and one settle tx hash. [IF HSP LIVE] Show the `pnpm hsp:pay` run: the two approvals, payment-safe and its tx. [IF HSP NOT LIVE] Say the rail is built and tested, and waits for testnet USDC for its first payment.
 
 ## Slide 7: What's new in this hackathon
 **On slide:**
@@ -62,7 +62,7 @@ One honest challenge, one lesson: never trust a gateway's word alone. Agent B ch
 
 ## Slide 9: What's next
 **On slide:**
-Pay HSP cart mandates agent to agent through the gateway's payment API instead of a checkout page, add KYC and sanctions-gated tasks, attest each receipt with EAS, and onboard Execution Market tasks paid on HashKey.
+Let agents pay HSP mandates under a pre-approved spending policy where HSP allows it, add KYC and sanctions-gated tasks, attest each receipt with EAS, and onboard Execution Market tasks paid on HashKey.
 
 **Speaker notes:**
 Concrete next steps with dates if possible.

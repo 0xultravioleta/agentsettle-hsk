@@ -28,11 +28,17 @@ On top of that, an autonomous buyer needs **guardrails**, so a bug or a maliciou
 4. A retries with the `X-PAYMENT` header.
 5. B sends the payment to the **x402 facilitator** (`/verify`, then `/settle`). The facilitator broadcasts the transfer on HashKey Chain and pays the gas.
 6. B delivers the result and writes **`AgentSettleReceipts.recordReceipt(taskId, payer, payee, token, amount, settleTx, hspPaymentId, keccak256(result))`**.
-7. **HSP rail:** the same task is paid through **HSP**, the HashKey Merchant API, on testnet.
-   - B creates a one-time **cart mandate**: HMAC-SHA256 signed request, ES256K merchant JWT over the cart hash.
-   - A person pays it at the gateway's checkout (`payment_url`) from their own testnet wallet. The gateway's agent-side payment API is not documented, so Agent A does not pay HSP orders yet.
-   - B reads the payment record and checks it against the order (payee, token, chain, amount), then checks the transfer on-chain.
-   - Only then does B deliver. The receipt carries the HSP `payment_request_id` as `hspPaymentId`.
+7. **HSP rail:** the same task is paid through **HSP Agentic Payment**, HashKey's MCP server (QA, HashKey Chain testnet, USDC), with `pnpm hsp:pay`.
+   - The order: `get_chain_config` → `create_order` (a one-time cart mandate for B) → `get_order`.
+   - The person at the terminal confirms `merchant_name`, then `pay_to`, then the payer, one at a time with no defaults.
+   - `prepare_payment` returns the EIP-712 data to sign. A **checks it before signing** and refuses anything else:
+     - it must be `TransferWithAuthorization`, the EIP-3009 struct, on this chain and on the token `get_chain_config` lists;
+     - from the confirmed payer to the confirmed `pay_to`, for exactly `token_total_raw`;
+     - at most the price + 10%, valid for at most an hour.
+   - A also checks its balance. The person approves `pay_to`, payer and `token_total_raw`, then A signs with its own key, which never goes to the server.
+   - `finalize_payment`, then a second approval, then `submit_payment`. The gateway broadcasts the transfer.
+   - `query_payment` runs every 15 s until `payment-safe`, `payment-finalized` or `payment-failed`, and reports `attribution_verified`. After 10 minutes it reports "Pending confirmation".
+   - B delivers only after the mined tx consumes **that** authorization (`AuthorizationUsed`) and moves exactly `token_total_raw` from A to B. The receipt carries the HSP `payment_request_id` as `hspPaymentId`.
 8. When A is asked for 2 USDC, the per-transaction cap **refuses before anything is signed**. This is shown in the demo.
 
 ```mermaid
@@ -65,7 +71,7 @@ scripts/demo.sh            # local chain: anvil + an EIP-3009 USDC mock with the
 
 | Do | See |
 |---|---|
-| `scripts/demo.sh` | It runs this sequence: 402 → spend check → EIP-3009 signed → facilitator settles → `Hola mundo, agentes pagan agentes` delivered → `recordReceipt` tx. Then it shows the 2 USDC task **denied** and the HSP rail (marked SIMULATED until the HashKey Merchant credentials are in SSM). |
+| `scripts/demo.sh` | It runs this sequence: 402 → spend check → EIP-3009 signed → facilitator settles → `Hola mundo, agentes pagan agentes` delivered → `recordReceipt` tx. Then it shows the 2 USDC task **denied**. Locally the HSP step is marked SIMULATED; on testnet the HSP step is `pnpm hsp:pay`, which asks a person to confirm each value. |
 | `scripts/demo.sh --ui`, then open http://127.0.0.1:8402 | The judge console opens, with receipts seeded from the run. |
 | Click **Hire Agent B · 0.10 USDC** | The flow animates: the 402 body, the signature with "gas paid by buyer: 0", the settle tx, and the receipt tx. A new row appears in **On-chain receipts**. |
 | Click **Premium task · 2.00 USDC** | "Spend policy DENIED: 2.00 USDC is over the per-transaction cap of 0.50 USDC". Nothing was signed. |
@@ -74,6 +80,7 @@ scripts/demo.sh            # local chain: anvil + an EIP-3009 USDC mock with the
 
 On HashKey testnet or mainnet, the same command prints Blockscout links for every transaction:
 - **Testnet:** `cp .env.example .env`, fill the testnet keys and `RECEIPTS_ADDRESS_TESTNET`, then run `scripts/demo.sh --network hashkey-testnet --runs 3`.
+- **HSP on testnet:** `pnpm hsp:pay`. It makes ONE HSP Agentic Payment and asks you to confirm each value. W6 needs testnet USDC `0x8FE3…` first; `HSP_MCP_NETWORK=base-sepolia` switches to the fallback chain.
 - **Mainnet:** `MAINNET_OWNER_OK=yes scripts/demo.sh --network hashkey`. Mainnet refuses to run without that flag.
 
 ## How we use HashKey Chain and HSP (sponsor tech, with file paths)
@@ -84,7 +91,8 @@ On HashKey testnet or mainnet, the same command prints Blockscout links for ever
 | **USDC EIP-3009 on HashKey** | [`src/rails/x402.ts`](src/rails/x402.ts) | x402 v2 `exact` requirements; the buyer signs `TransferWithAuthorization` for chain 177/133. |
 | **x402 facilitator with HashKey support** | `UltravioletaDAO/x402-rs` ([#132](https://github.com/UltravioletaDAO/x402-rs/pull/132), merged) · [`src/agents/seller.ts`](src/agents/seller.ts) | The seller calls `/verify` and `/settle` through `uvd-x402-sdk`'s `FacilitatorClient` (network `eip155:177`). [`src/facilitator/local.ts`](src/facilitator/local.ts) is a local stand-in with the same wire format. On testnet it is used while production does not list HashKey or reports it down. |
 | **On-chain receipts** | [`contracts/AgentSettleReceipts.sol`](contracts/AgentSettleReceipts.sol) | Mainnet: [CONTRACT_ADDRESS] (https://explorer.hsk.xyz/address/[CONTRACT_ADDRESS]). Testnet: [`0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1`](https://testnet-explorer.hskchain.net/address/0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1) (verified on Blockscout). |
-| **HSP (HashKey Merchant API)** | [`src/rails/hsp-merchant.ts`](src/rails/hsp-merchant.ts) · [`src/rails/hsp.ts`](src/rails/hsp.ts) · [`src/agents/hsp-flow.ts`](src/agents/hsp-flow.ts) | One-time cart mandates on the QA gateway (`hashkey-testnet`, USDC): HMAC-SHA256 request signing, the ES256K `merchant_authorization` JWT over the canonical cart hash, payment queries and signed webhooks (`/hsp/webhook`). The merchant key and the app credentials live in AWS SSM, never in the repo ([docs/hsp/REGISTRATION.md](docs/hsp/REGISTRATION.md)). The receipt carries the `payment_request_id`. |
+| **HSP Agentic Payment (MCP)** | [`src/rails/hsp-mcp.ts`](src/rails/hsp-mcp.ts) · [`src/agents/hsp-mcp-flow.ts`](src/agents/hsp-mcp-flow.ts) · [`src/cli/hsp-pay.ts`](src/cli/hsp-pay.ts) | The eight tools over Streamable HTTP (`@modelcontextprotocol/sdk` 1.32.1, pinned). Agent A pays B's cart mandate itself: `create_order` → `get_order` → `prepare_payment` → our check of the EIP-712 data (`checkTypedData`) → EIP-712 signature by A → `finalize_payment` → `submit_payment` → `query_payment`. A person confirms `merchant_name`, `pay_to`, the payer, and each signature and submission. B delivers only after the transfer is on-chain. |
+| **HSP REST rail (HashKey Merchant API), off the critical path** | [`src/rails/hsp-merchant.ts`](src/rails/hsp-merchant.ts) · [`src/rails/hsp.ts`](src/rails/hsp.ts) · [`src/agents/hsp-flow.ts`](src/agents/hsp-flow.ts) | One-time cart mandates on the QA gateway (`hashkey-testnet`, USDC): HMAC-SHA256 request signing, the ES256K `merchant_authorization` JWT over the canonical cart hash, payment queries and signed webhooks (`/hsp/webhook`). The merchant key and the app credentials live in AWS SSM, never in the repo ([docs/hsp/REGISTRATION.md](docs/hsp/REGISTRATION.md)). The receipt carries the `payment_request_id`. |
 | **Spend guardrails (same shape as HSP SpendGuard)** | [`src/spend-guard.ts`](src/spend-guard.ts) | A per-tx cap of 0.50 USDC and a daily cap of 5 USDC. A spend is booked at signing time. |
 
 Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
@@ -98,7 +106,8 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 | Contract on HashKey testnet | ✅ [`0xaE84CA77…`](https://testnet-explorer.hskchain.net/address/0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1), deployed by W5 in [tx 0xd2f083d1…](https://testnet-explorer.hskchain.net/tx/0xd2f083d1f44ecf293239653b06ab1bc0b93d9d17fecb12ff7cfff4a938c1bf60) (block 35115376) and verified on Blockscout |
 | x402 settle on HashKey testnet | ⏳ waiting for test USDC (`0x8FE3…`) on the buyer wallet |
 | Production facilitator with `hashkey` / `hashkey-testnet` | ✅ listed in `/supported` (2.52.0) and its `/verify` accepts our v2 payload on both chains · ✅ `/health/ready` reports both networks `ok`, their signers with gas (checked 2026-11-01) |
-| HSP on the HashKey Merchant QA gateway | ✅ adapter built and tested against the docs' recorded examples and an anvil e2e (`test/hsp-merchant*.test.ts`) · ✅ merchant key in SSM, registration data ready · ⏳ app_key/app_secret after registration, and the QA IP allowlist; until then the rail is a labelled stub · the checkout is paid by a person from their own testnet wallet, and Agent B checks the record and the on-chain transfer either way |
+| HSP Agentic Payment (MCP, QA) | ✅ the QA MCP server answers our IP (initialize, the eight tools, `get_chain_config`; read-only, 2026-11-01) · ✅ client and flow tested against a fake server that replays the recorded tool schemas, plus an anvil e2e (`test/hsp-mcp*.test.ts`) · ⏳ one real payment with `pnpm hsp:pay` once W6 holds testnet USDC (`0x8FE3…`) |
+| HSP REST rail (HashKey Merchant API) | ✅ built and tested (`test/hsp-merchant*.test.ts`) · off the critical path: its QA API still answers 403, and HSP Agentic Payment needs no credentials |
 | Mainnet deploy + settlements | ⏳ approved (deploy by W3, 5 to 10 runs); waiting for gas on W3 and USDC on W4 ([docs/FUNDING.md](docs/FUNDING.md)) |
 | EAS attestation per receipt, ERC-8004 feedback | not built (P1/P2) |
 
@@ -127,7 +136,8 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 - **Existed before. We use these through their public interfaces only:**
   - Ultravioleta's open-source x402 facilitator ([x402-rs](https://github.com/UltravioletaDAO/x402-rs)). Its HashKey support is a hackathon PR in that repo ([#132](https://github.com/UltravioletaDAO/x402-rs/pull/132), merged on 2026-10-30, live in 2.52.0).
   - The TypeScript SDK [`uvd-x402-sdk`](https://www.npmjs.com/package/uvd-x402-sdk).
-  - HashKey's HSP (HashKey Merchant) API, used through its public docs.
+  - HashKey's HSP: HSP Agentic Payment (the MCP server, through the setup guide HSP sent the teams) and the HashKey Merchant API (through its public docs).
+  - The MCP TypeScript SDK ([`@modelcontextprotocol/sdk`](https://www.npmjs.com/package/@modelcontextprotocol/sdk)).
   - Foundry and forge-std.
 - **Built during the hackathon (Oct 29 – Nov 2, 2026):** everything in this repository. Commit range: `cac5ebf`…[LAST_COMMIT].
 
@@ -137,8 +147,10 @@ Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
 contracts/AgentSettleReceipts.sol      receipts contract (+ test/, script/Deploy.s.sol, mocks/MockEIP3009.sol for local runs)
 src/agents/buyer.ts                    Agent A: caps -> sign EIP-3009 -> X-PAYMENT
 src/agents/seller.ts                   Agent B: 402 -> verify/settle -> task -> recordReceipt
-src/agents/hsp-flow.ts                 the same task over HSP
-src/rails/x402.ts · src/rails/hsp.ts   the two payment rails
+src/agents/hsp-mcp-flow.ts             the same task over HSP Agentic Payment (confirmations, checks, polling, receipt)
+src/rails/hsp-mcp.ts · src/cli/hsp-pay.ts   HSP MCP client, checkTypedData; `pnpm hsp:pay` (one run, a person confirms)
+src/agents/hsp-flow.ts                 the HSP REST rail flow (off the critical path)
+src/rails/x402.ts · src/rails/hsp.ts   the x402 rail; the HSP REST rail
 src/rails/hsp-merchant.ts              HashKey Merchant API: HMAC signing, ES256K cart JWT, payments, webhooks
 src/hsp-secrets.ts · src/cli/hsp-keygen.ts   HSP secrets in AWS SSM; merchant key pair (`pnpm hsp:keygen`)
 src/facilitator/local.ts               local x402 facilitator (same wire format as x402-rs)
@@ -158,7 +170,9 @@ forge test                        # contract: operator-only (with fuzz), no dupl
 pnpm install && pnpm test         # unit + end-to-end on anvil: payment, receipt fields, caps, retries and replays,
                                   # forged signature, tampered price, broke buyer, every facilitator guard, concurrent
                                   # settle, lost settle response, lying facilitator, cross-site requests; HSP: the docs'
-                                  # recorded examples, a fake gateway that re-checks HMAC/JWT/cart_hash, lying records
+                                  # recorded examples, a fake gateway that re-checks HMAC/JWT/cart_hash, lying records;
+                                  # HSP Agentic Payment: a fake MCP server replaying the recorded tool schemas, one test
+                                  # per field we refuse to sign, every "no" of the person, lying payment records
 bash scripts/ci/preflight.sh      # exactly what CI runs (Node 20, pnpm 10, Foundry, gitleaks)
 ```
 

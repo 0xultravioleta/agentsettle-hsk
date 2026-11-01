@@ -1,5 +1,8 @@
 # HSP (HashKey Merchant) registration: data to send
 
+> **Off the critical path since 2026-11-01.** The HSP rail now runs on HSP Agentic Payment (MCP), which needs no
+> registration or credentials (`pnpm hsp:pay`, see README). This page only matters for the REST rail.
+
 The fields come from the gateway's onboarding guide, step 2. Operations need them to create the organization invite.
 Nothing has been submitted from this repo. The owner sends them.
 

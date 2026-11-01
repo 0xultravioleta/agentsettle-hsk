@@ -10,7 +10,7 @@ operator's local `.env` (gitignored, mode 600). They were never printed, logged 
 | **W3** | **Agent B / operator**: receives the USDC, deploys `AgentSettleReceipts`, writes receipts | HashKey mainnet (177) | `0xAaB1a67023A3ff5d7ebf64262491d144b6080bAc` | `OPERATOR_PRIVATE_KEY` |
 | **W4** | **Agent A / buyer**: signs EIP-3009 authorizations, never pays gas on x402 | HashKey mainnet (177) | `0x83F074aF971Eef404B84dA63bb1f1a6D0fce44C4` | `BUYER_PRIVATE_KEY` |
 | **W5** | Testnet copy of W3 (also the gas wallet of the local dev facilitator on testnet) | HashKey testnet (133) | `0xfc104F3666Aeaf5BE5361E149B2B1015D0F9A38D` | `TESTNET_OPERATOR_PRIVATE_KEY` |
-| **W6** | Testnet copy of W4 (pays x402 on testnet; the HSP checkout is paid from a person's own wallet, never by importing this key) | HashKey testnet (133) | `0xc9eAB77D415EcDf7FAA93130ff74F402FF99E289` | `TESTNET_BUYER_PRIVATE_KEY` |
+| **W6** | Testnet copy of W4: pays x402 on testnet and signs the HSP Agentic Payment authorization (`pnpm hsp:pay`) locally; the key never goes to the MCP server or into a wallet app. The HSP web checkout is paid from a person's own wallet. | HashKey testnet (133) | `0xc9eAB77D415EcDf7FAA93130ff74F402FF99E289` | `TESTNET_BUYER_PRIVATE_KEY` |
 
 USDC only moves W4 → W3 (both ours): the settlement float is parked, not spent. W1 is never used as a deployer.
 Funding amounts and routes: [FUNDING.md](FUNDING.md).
