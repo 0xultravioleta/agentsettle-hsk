@@ -185,7 +185,7 @@ bash scripts/ci/preflight.sh      # exactly what CI runs (Node 20, pnpm 10, Foun
 
 ## Team
 
-Ultravioleta DAO: Luis ([LUIS_X_HANDLE]) and c0der. Built with help from AI coding agents.
+Ultravioleta DAO: Saúl and c0der. Built with help from AI coding agents.
 
 ## License
 

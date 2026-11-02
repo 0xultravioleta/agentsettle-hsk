@@ -1,7 +1,7 @@
 # Demo video script + shot list: AgentSettle (HSP, x402)
 
 - **Length:** about 2:00 (no published limit; keep it short).
-- **Record:** 1080p screen capture (OBS), voice-over by Luis in English (Spanish subtitles optional). No copyrighted music; use YouTube Audio Library or silence.
+- **Record:** 1080p screen capture (OBS), voice-over by Saúl in English (Spanish subtitles optional). No copyrighted music; use YouTube Audio Library or silence.
 - **Upload:** YouTube, Public (or Unlisted if the rules allow), title: `AgentSettle (HSP, x402) | HashKey Chain Horizon Hackathon (Mumbai), Agent Payments & A2A Settlement`.
 - **HSP row:** record the `[IF HSP LIVE]` shot only if SUBMISSION.md keeps the `[IF HSP LIVE]` sentence; otherwise record the `[IF HSP NOT LIVE]` one.
 

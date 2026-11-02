@@ -1,4 +1,4 @@
-# Luis click list: HashKey Chain Horizon Hackathon (Mumbai), Agent Payments & A2A Settlement
+# Saúl click list: HashKey Chain Horizon Hackathon (Mumbai), Agent Payments & A2A Settlement
 
 
 - **URL:** https://dorahacks.io/hackathon/hskchainindia/detail → Submit BUIDL
@@ -6,10 +6,10 @@
 - **Format:** remote. The BUIDL is submitted on DoraHacks and the presentation is online. Per the page, the venue is Mumbai and online demo participants get a fixed time slot (missing it forfeits the demo). Selected pitch teams are announced Nov 3; Demo Day is Nov 4.
 - **Copy from:** `SUBMISSION.md` at the repo root (in form order), video from `video-script.md`, deck PDF from `deck-outline.md`.
 
-## Fill these placeholders first (only Luis has them)
+## Fill these placeholders first (only Saúl has them)
 Search SUBMISSION.md for `[` and replace: video URL (after upload), deck URL, logo, personal fields (name, handles). The Ethereum Sepolia links (contract, settle, receipt) are already filled in. The mainnet contract address and its deploy tx (0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) are already filled in. Keep either the `[IF HSP LIVE]` or the `[IF HSP NOT LIVE]` sentence; SUBMISSION.md says how to tell which.
 
-## Before submit day (only Luis)
+## Before submit day (only Saúl)
 - [ ] DoraHacks login → Register as Hacker on hskchainindia.
 - [ ] HSP: register the merchant on the HashKey Merchant QA gateway with the data in `docs/hsp/REGISTRATION.md`, then put app_key and app_secret into AWS SSM with the recipe there (never in chat, `.env` or the repo).
 - [x] Mainnet: W3 `0xAaB1a67023A3ff5d7ebf64262491d144b6080bAc` funded and the contract deployed (Nov 1). No paid runs on mainnet during the hackathon: HashKey asks for USDC payment tests on Ethereum Sepolia.
@@ -18,11 +18,11 @@ Search SUBMISSION.md for `[` and replace: video URL (after upload), deck URL, lo
 - [ ] Record the voice-over (video-script.md) on the Ethereum Sepolia payment, so every tx hash on screen is real and opens on sepolia.etherscan.io. The mainnet hashes on screen are only the contract and its deploy tx.
 - [x] Approve the repo going public: done, public since 2026-11-02 (https://github.com/0xultravioleta/agentsettle-hsk); SUBMISSION.md and README carry the URL.
 
-## Clicks left for Luis
-1. Sign in / join (Luis only: login, passkey, 2FA).
+## Clicks left for Saúl
+1. Sign in / join (Saúl only: login, passkey, 2FA).
 2. Paste each field from SUBMISSION.md.
 3. Upload video / cover / deck where asked.
 4. Choose the track(s): Agent Payments & A2A Settlement.
-5. Tick the rules/consent box (Luis reads it).
+5. Tick the rules/consent box (Saúl reads it).
 6. Click **Submit** (not just Save draft) and screenshot the confirmation.
-7. Optional: post social-post.md from his account.
+7. Optional: post social-post.md from Saúl's own account.

@@ -8,7 +8,7 @@ AgentSettle (HSP, x402)
 Agents paying agents, settled on HashKey Chain.
 
 **Speaker notes:**
-Hi, I'm Luis from Ultravioleta. Agents paying agents, settled on HashKey Chain. This is AgentSettle (HSP, x402), built for HashKey Chain Horizon Hackathon (Mumbai), Agent Payments & A2A Settlement.
+Hi, I'm Saúl from Ultravioleta. Agents paying agents, settled on HashKey Chain. This is AgentSettle (HSP, x402), built for HashKey Chain Horizon Hackathon (Mumbai), Agent Payments & A2A Settlement.
 
 ## Slide 2: The problem
 **On slide:**
@@ -70,7 +70,7 @@ Concrete next steps with dates if possible.
 
 ## Slide 10: Team and links
 **On slide:**
-Luis, c0der · Ultravioleta DAO
+Saúl, c0der · Ultravioleta DAO
 Repo · Video · Contract 0xb8956dFe5819b9828b6D55315bFB871c443f08a1 (deploy tx https://explorer.hsk.xyz/tx/0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c)
 
 **Speaker notes:**
