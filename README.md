@@ -4,7 +4,7 @@
 > x402 facilitator, HSP as the second settlement rail, and one on-chain receipt per paid task.
 
 **Built for the HashKey Chain Horizon Hackathon (Mumbai), track: Agent Payments & A2A Settlement.**
-Demo video: [YOUTUBE_URL] · Contract (HashKey Chain mainnet): [`0xb8956dFe…08a1`](https://explorer.hsk.xyz/address/0xb8956dFe5819b9828b6D55315bFB871c443f08a1) · Payment test (Ethereum Sepolia, Circle USDC): [settle tx](https://sepolia.etherscan.io/tx/[SEPOLIA_SETTLE_TX]) · Facilitator PR: [x402-rs#132](https://github.com/UltravioletaDAO/x402-rs/pull/132)
+Demo video: [YOUTUBE_URL] · Contract (HashKey Chain mainnet): [`0xb8956dFe…08a1`](https://explorer.hsk.xyz/address/0xb8956dFe5819b9828b6D55315bFB871c443f08a1) · Payment test (Ethereum Sepolia, Circle USDC): [settle tx](https://sepolia.etherscan.io/tx/0x817c2d667ab5509b84d7aeb37ce1f568cc446b7b97eed3bac6940e7a1d4fc8dc) · Facilitator PR: [x402-rs#132](https://github.com/UltravioletaDAO/x402-rs/pull/132)
 
 ## The problem
 
@@ -99,7 +99,7 @@ On a public chain, the same command prints explorer links for every transaction:
 | **Spend guardrails (same shape as HSP SpendGuard)** | [`src/spend-guard.ts`](src/spend-guard.ts) | A per-tx cap of 0.50 USDC and a daily cap of 5 USDC. A spend is booked at signing time. |
 
 Transactions:
-- **Payment test on Ethereum Sepolia (Circle USDC), as HashKey asks:** contract [`[SEPOLIA_CONTRACT]`](https://sepolia.etherscan.io/address/[SEPOLIA_CONTRACT]) ([deploy tx](https://sepolia.etherscan.io/tx/[SEPOLIA_DEPLOY_TX])), one 0.10 USDC payment W6 → W5 [settled](https://sepolia.etherscan.io/tx/[SEPOLIA_SETTLE_TX]) by our own facilitator, and [its receipt](https://sepolia.etherscan.io/tx/[SEPOLIA_RECEIPT_TX]).
+- **Payment test on Ethereum Sepolia (Circle USDC), as HashKey asks:** contract [`0x751b5509…a4aF`](https://sepolia.etherscan.io/address/0x751b5509aa6F1186077B39e36902e7D54C76a4aF) ([deploy tx](https://sepolia.etherscan.io/tx/0xab517821080f941aee7e0cf9193caa9f3d080d8835ef4293f4ec17842942df5d); source verified on [Sourcify](https://repo.sourcify.dev/11155111/0x751b5509aa6F1186077B39e36902e7D54C76a4aF), exact match), one 0.10 USDC payment W6 → W5 [settled](https://sepolia.etherscan.io/tx/0x817c2d667ab5509b84d7aeb37ce1f568cc446b7b97eed3bac6940e7a1d4fc8dc) by our own facilitator, and [its receipt](https://sepolia.etherscan.io/tx/0x56c3e28c7e00d133779e1a0385a4f491c118809c69080195f4c3c1cb583200c0) (one `TaskSettled` event).
 - **HashKey Chain:** the contract deploys, on [mainnet](https://explorer.hsk.xyz/tx/0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) and [testnet](https://testnet-explorer.hskchain.net/tx/0xd2f083d1f44ecf293239653b06ab1bc0b93d9d17fecb12ff7cfff4a938c1bf60).
 
 ## Status (kept honest)
@@ -109,7 +109,7 @@ Transactions:
 | Contract + Foundry tests (10 for the contract, 5 for the local USDC mock, 1 for the deploy guard) | ✅ |
 | x402 flow end to end (seller, SDK client, facilitator, EIP-3009 transfer, receipt) on a local chain | ✅ covered by `test/e2e-local.test.ts` and `test/guards-e2e.test.ts` |
 | Contract on HashKey testnet | ✅ [`0xaE84CA77…`](https://testnet-explorer.hskchain.net/address/0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1), deployed by W5 in [tx 0xd2f083d1…](https://testnet-explorer.hskchain.net/tx/0xd2f083d1f44ecf293239653b06ab1bc0b93d9d17fecb12ff7cfff4a938c1bf60) (block 35115376) and verified on Blockscout |
-| x402 payment on Ethereum Sepolia (Circle USDC, settled by our own facilitator) | ⏳ waiting for Circle USDC on W6 and Sepolia ETH on W5; then one deploy and one 0.10 USDC payment |
+| x402 payment on Ethereum Sepolia (Circle USDC, settled by our own facilitator) | ✅ 2026-11-02: contract [`0x751b5509…`](https://sepolia.etherscan.io/address/0x751b5509aa6F1186077B39e36902e7D54C76a4aF) deployed by W5 and verified on Sourcify; one 0.10 USDC payment W6 → W5, [settle](https://sepolia.etherscan.io/tx/0x817c2d667ab5509b84d7aeb37ce1f568cc446b7b97eed3bac6940e7a1d4fc8dc) and [receipt](https://sepolia.etherscan.io/tx/0x56c3e28c7e00d133779e1a0385a4f491c118809c69080195f4c3c1cb583200c0) |
 | x402 settle on HashKey testnet | ⏳ waiting for test USDC (`0x8FE3…`) on the buyer wallet |
 | Production facilitator with `hashkey` / `hashkey-testnet` | ✅ listed in `/supported` (2.52.0) and its `/verify` accepts our v2 payload on both chains · ✅ `/health/ready` reports both networks `ok`, their signers with gas (checked 2026-11-01) |
 | HSP Agentic Payment (MCP, QA) | ✅ the QA MCP server answers our IP (initialize, the eight tools, `get_chain_config`; read-only, 2026-11-01) · ✅ client and flow tested against a fake server that replays the recorded tool schemas, plus an anvil e2e (`test/hsp-mcp*.test.ts`) · ⏳ one real payment with `pnpm hsp:pay` once W6 holds testnet USDC (`0x8FE3…`) |

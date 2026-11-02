@@ -41,7 +41,7 @@ Architecture diagram. Point at the sponsor component first.
 ## Slide 6: Sponsor tech: HashKey Chain mainnet + HSP (HashKey Merchant API)
 **On slide:**
 - HashKey Chain mainnet (177): facilitator network `hashkey` (x402-rs #132, live in 2.52.0), USDC `0x054e…8D0a` via EIP-3009, `AgentSettleReceipts` at `0xb8956dFe5819b9828b6D55315bFB871c443f08a1` (deploy tx `0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c`, block 29602850, verified on Blockscout)
-- Ethereum Sepolia, the USDC payment test HashKey asks for: Circle's USDC `0x1c7D…7238`, `AgentSettleReceipts` at `[SEPOLIA_CONTRACT]`, settled by AgentSettle's own facilitator (production has no `exact` there)
+- Ethereum Sepolia, the USDC payment test HashKey asks for: Circle's USDC `0x1c7D…7238`, `AgentSettleReceipts` at `0x751b5509aa6F1186077B39e36902e7D54C76a4aF`, settled by AgentSettle's own facilitator (production has no `exact` there)
 - HSP Agentic Payment (MCP): `src/rails/hsp-mcp.ts`, `src/agents/hsp-mcp-flow.ts`: `create_order` → `prepare_payment` → our field-by-field check of the EIP-712 data → Agent A signs → `finalize_payment` → `submit_payment` → `query_payment`, with a person confirming each step
 
 **Speaker notes:**
@@ -49,7 +49,7 @@ Judges score sponsor usage heavily. Show the file names, the Ethereum Sepolia se
 
 ## Slide 7: What's new in this hackathon
 **On slide:**
-New repo, commit range `cac5ebf`…[LAST_COMMIT], the HashKey networks in the facilitator (x402-rs #132), contract live and verified on HashKey Chain mainnet; payment test on Ethereum Sepolia: [SEPOLIA_SETTLE_TX]
+New repo, commit range `cac5ebf`…[LAST_COMMIT], the HashKey networks in the facilitator (x402-rs #132), contract live and verified on HashKey Chain mainnet; payment test on Ethereum Sepolia: settle tx `0x817c2d667ab5509b84d7aeb37ce1f568cc446b7b97eed3bac6940e7a1d4fc8dc`, receipt tx `0x56c3e28c7e00d133779e1a0385a4f491c118809c69080195f4c3c1cb583200c0`
 
 **Speaker notes:**
 Existed before: the x402 facilitator and its TypeScript SDK. New: HashKey support in the facilitator, the agents, the contract, the HSP rail and the console.
