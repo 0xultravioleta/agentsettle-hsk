@@ -64,7 +64,7 @@ sequenceDiagram
 You need Node 20+, git and [Foundry](https://getfoundry.sh) (`curl -L https://foundry.paradigm.xyz | bash && foundryup`).
 
 ```bash
-git clone --recurse-submodules [REPO_URL] agentsettle-hsk && cd agentsettle-hsk
+git clone --recurse-submodules https://github.com/0xultravioleta/agentsettle-hsk agentsettle-hsk && cd agentsettle-hsk
 scripts/demo.sh            # local chain: anvil + an EIP-3009 USDC mock with the same EIP-712 domain as HashKey testnet USDC
 ```
 

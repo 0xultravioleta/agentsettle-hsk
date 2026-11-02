@@ -35,7 +35,7 @@ Category: Infrastructure / Payments. Domains: AI agents, payments, stablecoins, 
 
 ### Links (GitHub, website, demo video, social)
 ```text
-GitHub: [REPO_URL]
+GitHub: https://github.com/0xultravioleta/agentsettle-hsk
 Demo video: [YOUTUBE_URL]
 Deck: [DECK_URL]
 Facilitator PR: https://github.com/UltravioletaDAO/x402-rs/pull/132
@@ -91,7 +91,7 @@ Agent Payments & A2A Settlement
 |---|---|
 | ~~`[CONTRACT_ADDRESS]`~~ | filled: `0xb8956dFe5819b9828b6D55315bFB871c443f08a1` (deployed by W3 on 2026-11-01, tx 0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c, verified, https://explorer.hsk.xyz/address/0xb8956dFe5819b9828b6D55315bFB871c443f08a1) |
 | ~~`[TESTNET_CONTRACT_ADDRESS]`~~ | filled: `0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1` (verified, https://testnet-explorer.hskchain.net/address/0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1) |
-| `[REPO_URL]` | after the owner approves making the repo public |
+| ~~`[REPO_URL]`~~ | filled: https://github.com/0xultravioleta/agentsettle-hsk (public since 2026-11-02) |
 | ~~`[PR_URL]`~~ | filled: https://github.com/UltravioletaDAO/x402-rs/pull/132 (merged, live in 2.52.0) |
 | `[YOUTUBE_URL]`, `[DECK_URL]`, `[LOGO]` | after recording and upload |
 | `[LAST_COMMIT]` | the last commit before submitting (no mainnet run links: the paid runs wait for USDC funding) |

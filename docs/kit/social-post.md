@@ -17,7 +17,7 @@ BUIDL for HashKey Chain Horizon: [BUIDL_URL]
 
 4/ What's next: HSP payments under a pre-approved spending policy, KYC-gated tasks and EAS-attested receipts.
 
-5/ Repo: [REPO_URL] · Video: [VIDEO_URL]
+5/ Repo: https://github.com/0xultravioleta/agentsettle-hsk · Video: [VIDEO_URL]
 ```
 
 ## LinkedIn
@@ -28,5 +28,5 @@ Agents hire and pay each other on HashKey Chain: HSP settlement plus an x402 fac
 
 Why: Agent-to-agent commerce needs three things: a way to ask for payment over HTTP, a settlement layer with compliance controls, and a receipt others can trust. HashKey's HSP provides the second. Our open-source x402 facilitator provides the first, across 43 networks, so we added HashKey Chain.
 
-Built by Ultravioleta DAO with our open-source x402 facilitator. Video: [VIDEO_URL] · Repo: [REPO_URL]
+Built by Ultravioleta DAO with our open-source x402 facilitator. Video: [VIDEO_URL] · Repo: https://github.com/0xultravioleta/agentsettle-hsk
 ```

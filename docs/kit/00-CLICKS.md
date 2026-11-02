@@ -7,7 +7,7 @@
 - **Copy from:** `SUBMISSION.md` at the repo root (in form order), video from `video-script.md`, deck PDF from `deck-outline.md`.
 
 ## Fill these placeholders first (only Luis has them)
-Search SUBMISSION.md for `[` and replace: repo URL (after Luis approves making it public), video URL (after upload), deck URL, logo, personal fields (name, handles). There are no mainnet run links to add: the paid runs wait for USDC funding. The mainnet contract address and its deploy tx (0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) are already filled in. Keep either the `[IF HSP LIVE]` or the `[IF HSP NOT LIVE]` sentence; SUBMISSION.md says how to tell which.
+Search SUBMISSION.md for `[` and replace: video URL (after upload), deck URL, logo, personal fields (name, handles). There are no mainnet run links to add: the paid runs wait for USDC funding. The mainnet contract address and its deploy tx (0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) are already filled in. Keep either the `[IF HSP LIVE]` or the `[IF HSP NOT LIVE]` sentence; SUBMISSION.md says how to tell which.
 
 ## Before submit day (only Luis)
 - [ ] DoraHacks login → Register as Hacker on hskchainindia.
@@ -15,7 +15,7 @@ Search SUBMISSION.md for `[` and replace: repo URL (after Luis approves making i
 - [ ] Mainnet: fund W3 `0xAaB1a67023A3ff5d7ebf64262491d144b6080bAc` (5 HSK) and W4 `0x83F074aF971Eef404B84dA63bb1f1a6D0fce44C4` (5 USDC). The deploy and 5 to 10 runs are approved (Oct 31). W1, the facilitator, is funded separately.
 - [ ] Testnet: faucet USDC to W6 `0xc9eAB77D415EcDf7FAA93130ff74F402FF99E289`.
 - [ ] Record the voice-over (video-script.md) on the local run (`scripts/demo.sh --ui`), saying it is a local chain, so every tx hash on screen is real. The mainnet hashes on screen are only the contract and its deploy tx.
-- [ ] Approve the repo going public (it stays private until then).
+- [x] Approve the repo going public: done, public since 2026-11-02 (https://github.com/0xultravioleta/agentsettle-hsk); SUBMISSION.md and README carry the URL.
 
 ## Clicks left for Luis
 1. Sign in / join (Luis only: login, passkey, 2FA).
