@@ -1,6 +1,6 @@
 # Social post drafts: HashKey Chain Horizon Hackathon (Mumbai), Agent Payments & A2A Settlement
 
-**Do not post. Luis posts from his own account after submission (or before, where the rules require it).** Check the sponsor's @ handle before posting, and keep the HSP sentence only if SUBMISSION.md keeps `[IF HSP LIVE]`.
+**Do not post. Saúl posts from Saúl's own account after submission (or before, where the rules require it).** Check the sponsor's @ handle before posting, and keep the HSP sentence only if SUBMISSION.md keeps `[IF HSP LIVE]`.
 
 ## X post (266/280 counting each link as 23)
 ```text

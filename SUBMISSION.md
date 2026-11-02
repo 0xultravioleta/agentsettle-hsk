@@ -4,7 +4,7 @@
 - **Deadline:** Mon Nov 2, 2026, 21:30 IST = **16:00 UTC** = 11:00 AM EST (Nov 3, 00:00 Beijing). It covers registration and submission. DoraHacks closes the form automatically at that time and takes no late submissions. Read from the DoraHacks page on Nov 1, 2026: its countdown and timeline end at 2026-11-02 16:00 UTC. An older section of the page says Nov 1, 21:30 IST, but at 16:06 UTC on Nov 1 the page still showed "23 hours left", so Nov 2, 16:00 UTC is the cut-off. Internal freeze: [the owner sets it again after the extension].
 - **Format:** remote. The BUIDL is submitted on DoraHacks and the presentation is online. Per the page, the venue is Mumbai and online demo participants get a fixed time slot (missing it forfeits the demo). Selected pitch teams are announced Nov 3; Demo Day is Nov 4.
 - **Source:** the first draft in `docs/kit/form-fields.md`, corrected so every claim matches what this repo actually does. This file is now the only copy of the fields.
-- **Rule:** nobody registered, saved or submitted anything. Luis pastes and submits. Replace every `[PLACEHOLDER]` first.
+- **Rule:** nobody registered, saved or submitted anything. Saúl pastes and submits. Replace every `[PLACEHOLDER]` first.
 
 > **Before pasting, check two things.**
 > - **The `[IF HSP LIVE]` sentences.** Keep them only if `pnpm hsp:pay` reached `payment-safe` or `payment-finalized` on HSP QA, B confirmed the transfer on-chain and the receipt was written (its tx link goes in README). Otherwise use the `[IF HSP NOT LIVE]` variant.
@@ -67,7 +67,7 @@ Let agents pay HSP mandates under a pre-approved spending policy where HSP allow
 
 ### Team
 ```text
-Team: Luis ([LUIS_FULL_NAME], @[LUIS_X_HANDLE], lead and submitter) · c0der ([C0DER_NAME], engineering; add as teammate only if Luis decides) · Built with help from AI coding agents.
+Team: Saúl ([SAUL_FULL_NAME], @[SAUL_X_HANDLE], lead and submitter) · c0der ([C0DER_NAME], engineering; add as teammate only if Saúl decides) · Built with help from AI coding agents.
 ```
 
 ### Track
@@ -97,4 +97,4 @@ Agent Payments & A2A Settlement
 | `[DECK_URL]`, `[LOGO]` | after upload |
 | ~~`[SEPOLIA_CONTRACT]`, `[SEPOLIA_SETTLE_TX]`, `[SEPOLIA_RECEIPT_TX]`~~ | filled on 2026-11-02: contract 0x751b5509aa6F1186077B39e36902e7D54C76a4aF (deploy tx 0xab517821080f941aee7e0cf9193caa9f3d080d8835ef4293f4ec17842942df5d, Sourcify exact match), settle 0x817c2d667ab5509b84d7aeb37ce1f568cc446b7b97eed3bac6940e7a1d4fc8dc, receipt 0x56c3e28c7e00d133779e1a0385a4f491c118809c69080195f4c3c1cb583200c0 |
 | `[LAST_COMMIT]` | the last commit before submitting |
-| `[LUIS_FULL_NAME]`, `[LUIS_X_HANDLE]`, `[C0DER_NAME]` | Luis |
+| `[SAUL_FULL_NAME]`, `[SAUL_X_HANDLE]`, `[C0DER_NAME]` | Saúl |
