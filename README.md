@@ -1,10 +1,30 @@
 # AgentSettle (HSP, x402)
 
-> Agents hire and pay each other on HashKey Chain: an HTTP 402 price, a gasless EIP-3009 USDC payment settled by an
-> x402 facilitator, HSP as the second settlement rail, and one on-chain receipt per paid task.
+> Agents hire and pay each other on HashKey Chain: an HTTP 402 price, a gasless EIP-3009 USDC payment settled by our own
+> open-source x402 facilitator (live on HashKey mainnet and testnet), HSP as the second settlement rail, and one
+> on-chain receipt per paid task.
 
 **Built for the HashKey Chain Horizon Hackathon (Mumbai), track: Agent Payments & A2A Settlement.**
 Demo video: [youtu.be/EBvIWylq_n8](https://youtu.be/EBvIWylq_n8) · Contract (HashKey Chain mainnet): [`0xb8956dFe…08a1`](https://explorer.hsk.xyz/address/0xb8956dFe5819b9828b6D55315bFB871c443f08a1) · Payment test (Ethereum Sepolia, Circle USDC): [settle tx](https://sepolia.etherscan.io/tx/0x817c2d667ab5509b84d7aeb37ce1f568cc446b7b97eed3bac6940e7a1d4fc8dc) · Facilitator PR: [x402-rs#132](https://github.com/UltravioletaDAO/x402-rs/pull/132)
+
+## Our own facilitator: decentralizing x402 settlement on HashKey Chain
+
+x402 payments only work if someone verifies and settles them, and today most agents depend on a single
+company-run facilitator. **Ultravioleta DAO operates its own independent, open-source x402 facilitator**
+([UltravioletaDAO/x402-rs](https://github.com/UltravioletaDAO/x402-rs), Rust, built on the open-source x402-rs and
+extended by the DAO). For this hackathon we added HashKey Chain to it, so HashKey has a facilitator that does not
+depend on any single provider:
+
+- **Live in production on HashKey Chain mainnet (`eip155:177`) and testnet (`eip155:133`)**, settling USDC by
+  EIP-3009. It has been listed in `/supported` since version 2.52.0 (PR [#132](https://github.com/UltravioletaDAO/x402-rs/pull/132), merged on 2026-10-30).
+  Anyone can check it: [`/supported`](https://facilitator.ultravioletadao.xyz/supported) and
+  [`/health/ready`](https://facilitator.ultravioletadao.xyz/health/ready), where both networks report `ok` with funded
+  signers.
+- **The same facilitator serves dozens of other networks**, so an agent on HashKey can use the same payment stack it
+  uses everywhere else.
+- **Anyone can run it.** AgentSettle also ships a local facilitator with the same wire format
+  ([`src/facilitator/local.ts`](src/facilitator/local.ts)). It settled the Ethereum Sepolia payment test. A seller can
+  point at whichever facilitator it trusts, and the buyer's signed authorization stays valid with any of them.
 
 ## The problem
 
