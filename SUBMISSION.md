@@ -36,7 +36,7 @@ Category: Infrastructure / Payments. Domains: AI agents, payments, stablecoins, 
 ### Links (GitHub, website, demo video, social)
 ```text
 GitHub: https://github.com/0xultravioleta/agentsettle-hsk
-Demo video: [YOUTUBE_URL]
+Demo video: https://youtu.be/EBvIWylq_n8
 Deck: [DECK_URL]
 Facilitator PR: https://github.com/UltravioletaDAO/x402-rs/pull/132
 ```
@@ -93,7 +93,8 @@ Agent Payments & A2A Settlement
 | ~~`[TESTNET_CONTRACT_ADDRESS]`~~ | filled: `0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1` (verified, https://testnet-explorer.hskchain.net/address/0xaE84CA772f0ECA0Af6A79bEd82270Bb41F1A6Df1) |
 | ~~`[REPO_URL]`~~ | filled: https://github.com/0xultravioleta/agentsettle-hsk (public since 2026-11-02) |
 | ~~`[PR_URL]`~~ | filled: https://github.com/UltravioletaDAO/x402-rs/pull/132 (merged, live in 2.52.0) |
-| `[YOUTUBE_URL]`, `[DECK_URL]`, `[LOGO]` | after recording and upload |
+| ~~`[YOUTUBE_URL]`~~ | filled on 2026-11-02: https://youtu.be/EBvIWylq_n8 (submitted with the BUIDL) |
+| `[DECK_URL]`, `[LOGO]` | after upload |
 | ~~`[SEPOLIA_CONTRACT]`, `[SEPOLIA_SETTLE_TX]`, `[SEPOLIA_RECEIPT_TX]`~~ | filled on 2026-11-02: contract 0x751b5509aa6F1186077B39e36902e7D54C76a4aF (deploy tx 0xab517821080f941aee7e0cf9193caa9f3d080d8835ef4293f4ec17842942df5d, Sourcify exact match), settle 0x817c2d667ab5509b84d7aeb37ce1f568cc446b7b97eed3bac6940e7a1d4fc8dc, receipt 0x56c3e28c7e00d133779e1a0385a4f491c118809c69080195f4c3c1cb583200c0 |
 | `[LAST_COMMIT]` | the last commit before submitting |
 | `[LUIS_FULL_NAME]`, `[LUIS_X_HANDLE]`, `[C0DER_NAME]` | Luis |
