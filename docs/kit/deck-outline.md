@@ -26,10 +26,10 @@ One sentence, then go straight to the demo.
 
 ## Slide 4: Live demo
 **On slide:**
-Flow: GET /task → 402 (USDC; eip155:177 on mainnet) → spend check → EIP-3009 signature (no gas) → facilitator settles → delivery → recordReceipt
+Flow: GET /task → 402 (USDC; eip155:11155111 in the Ethereum Sepolia test, eip155:177 on mainnet) → spend check → EIP-3009 signature (no gas) → facilitator settles → delivery → recordReceipt
 
 **Speaker notes:**
-Play the 60–90 s demo clip. Pause on the settle tx and the receipt in the console (a local-chain run: no paid run has happened on HashKey Chain yet) and on the 2 USDC request the spend policy refuses.
+Play the 60–90 s demo clip. Pause on the settle tx and the receipt on sepolia.etherscan.io (the payment test HashKey asks for: Circle's USDC on Ethereum Sepolia) and on the 2 USDC request the spend policy refuses.
 
 ## Slide 5: How it works
 **On slide:**
@@ -41,21 +41,22 @@ Architecture diagram. Point at the sponsor component first.
 ## Slide 6: Sponsor tech: HashKey Chain mainnet + HSP (HashKey Merchant API)
 **On slide:**
 - HashKey Chain mainnet (177): facilitator network `hashkey` (x402-rs #132, live in 2.52.0), USDC `0x054e…8D0a` via EIP-3009, `AgentSettleReceipts` at `0xb8956dFe5819b9828b6D55315bFB871c443f08a1` (deploy tx `0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c`, block 29602850, verified on Blockscout)
+- Ethereum Sepolia, the USDC payment test HashKey asks for: Circle's USDC `0x1c7D…7238`, `AgentSettleReceipts` at `[SEPOLIA_CONTRACT]`, settled by AgentSettle's own facilitator (production has no `exact` there)
 - HSP Agentic Payment (MCP): `src/rails/hsp-mcp.ts`, `src/agents/hsp-mcp-flow.ts`: `create_order` → `prepare_payment` → our field-by-field check of the EIP-712 data → Agent A signs → `finalize_payment` → `submit_payment` → `query_payment`, with a person confirming each step
 
 **Speaker notes:**
-Judges score sponsor usage heavily. Show the file names and the mainnet contract on explorer.hsk.xyz with its deploy tx (no paid run has happened on HashKey Chain yet). [IF HSP LIVE] Show the `pnpm hsp:pay` run: the two approvals, payment-safe and its tx. [IF HSP NOT LIVE] Say the rail is built and tested, and waits for testnet USDC for its first payment.
+Judges score sponsor usage heavily. Show the file names, the Ethereum Sepolia settle tx and the mainnet contract on explorer.hsk.xyz with its deploy tx. [IF HSP LIVE] Show the `pnpm hsp:pay` run: the two approvals, payment-safe and its tx. [IF HSP NOT LIVE] Say the rail is built and tested, and waits for testnet USDC for its first payment.
 
 ## Slide 7: What's new in this hackathon
 **On slide:**
-New repo, commit range `cac5ebf`…[LAST_COMMIT], the HashKey networks in the facilitator (x402-rs #132), contract live and verified on HashKey Chain mainnet; no paid run on HashKey Chain yet
+New repo, commit range `cac5ebf`…[LAST_COMMIT], the HashKey networks in the facilitator (x402-rs #132), contract live and verified on HashKey Chain mainnet; payment test on Ethereum Sepolia: [SEPOLIA_SETTLE_TX]
 
 **Speaker notes:**
 Existed before: the x402 facilitator and its TypeScript SDK. New: HashKey support in the facilitator, the agents, the contract, the HSP rail and the console.
 
 ## Slide 8: Challenges and learnings
 **On slide:**
-HashKey's USDC is EIP-3009 but its USDT has neither EIP-3009 nor permit, so we settled in USDC and checked every token's EIP-712 domain against the chain. Bridged USDC on mainnet can only be minted through Circle's bridge adapter, so funding the demo's paid runs needs a route through Ethereum.
+HashKey's USDC is EIP-3009 but its USDT has neither EIP-3009 nor permit, so we settled in USDC and checked every token's EIP-712 domain against the chain. Bridged USDC on mainnet can only be minted through Circle's bridge adapter. HashKey then asked teams to test USDC payments on Ethereum Sepolia with Circle's USDC, so AgentSettle gained that network and settles there with its own facilitator.
 
 **Speaker notes:**
 One honest challenge, one lesson: never trust a gateway's word alone. Agent B checks the payment record against the order and the transfer on-chain before it delivers.

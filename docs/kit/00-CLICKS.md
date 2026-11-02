@@ -7,14 +7,15 @@
 - **Copy from:** `SUBMISSION.md` at the repo root (in form order), video from `video-script.md`, deck PDF from `deck-outline.md`.
 
 ## Fill these placeholders first (only Luis has them)
-Search SUBMISSION.md for `[` and replace: video URL (after upload), deck URL, logo, personal fields (name, handles). There are no run links to add: no paid run has happened on HashKey Chain yet. The mainnet contract address and its deploy tx (0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) are already filled in. Keep either the `[IF HSP LIVE]` or the `[IF HSP NOT LIVE]` sentence; SUBMISSION.md says how to tell which.
+Search SUBMISSION.md for `[` and replace: video URL (after upload), deck URL, logo, personal fields (name, handles). The Ethereum Sepolia links (`[SEPOLIA_…]`) are filled in by c0-hsk-agentsettle after the payment test. The mainnet contract address and its deploy tx (0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) are already filled in. Keep either the `[IF HSP LIVE]` or the `[IF HSP NOT LIVE]` sentence; SUBMISSION.md says how to tell which.
 
 ## Before submit day (only Luis)
 - [ ] DoraHacks login → Register as Hacker on hskchainindia.
 - [ ] HSP: register the merchant on the HashKey Merchant QA gateway with the data in `docs/hsp/REGISTRATION.md`, then put app_key and app_secret into AWS SSM with the recipe there (never in chat, `.env` or the repo).
-- [x] Mainnet: W3 `0xAaB1a67023A3ff5d7ebf64262491d144b6080bAc` funded and the contract deployed (Nov 1). Nothing else to fund on mainnet.
+- [x] Mainnet: W3 `0xAaB1a67023A3ff5d7ebf64262491d144b6080bAc` funded and the contract deployed (Nov 1). No paid runs on mainnet during the hackathon: HashKey asks for USDC payment tests on Ethereum Sepolia.
+- [x] Ethereum Sepolia (funded Nov 2): Circle USDC (faucet.circle.com) to W6 `0xc9eAB77D415EcDf7FAA93130ff74F402FF99E289` and Sepolia ETH to W5 `0xfc104F3666Aeaf5BE5361E149B2B1015D0F9A38D`.
 - [ ] Testnet: faucet USDC to W6 `0xc9eAB77D415EcDf7FAA93130ff74F402FF99E289`.
-- [ ] Record the voice-over (video-script.md) on the local run (`scripts/demo.sh --ui`), saying it is a local chain, so every tx hash on screen is real. The mainnet hashes on screen are only the contract and its deploy tx.
+- [ ] Record the voice-over (video-script.md) on the Ethereum Sepolia payment, so every tx hash on screen is real and opens on sepolia.etherscan.io. The mainnet hashes on screen are only the contract and its deploy tx.
 - [x] Approve the repo going public: done, public since 2026-11-02 (https://github.com/0xultravioleta/agentsettle-hsk); SUBMISSION.md and README carry the URL.
 
 ## Clicks left for Luis

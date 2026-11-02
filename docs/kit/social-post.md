@@ -11,7 +11,7 @@ BUIDL for HashKey Chain Horizon: [BUIDL_URL]
 
 ## X thread follow-ups (optional)
 ```text
-2/ How it works: Agent B answers HTTP 402 with a USDC price. Agent A signs an EIP-3009 authorization (no gas), our facilitator settles it on HashKey Chain, and B writes a receipt to AgentSettleReceipts. Caps: 0.50 USDC per tx, 5 per day.
+2/ How it works: Agent B answers HTTP 402 with a USDC price. Agent A signs an EIP-3009 authorization (no gas), an x402 facilitator settles it, and B writes a receipt to AgentSettleReceipts. Caps: 0.50 USDC per tx, 5 per day.
 
 3/ [IF HSP LIVE] The same task also runs over HSP Agentic Payment (MCP): the agent checks every field the server asks it to sign, a person approves, and B delivers only once that transfer is on-chain.
 
