@@ -4,6 +4,7 @@ This is the fast version: no terminal run, only pages that already exist. Every 
 
 - **Record:** macOS Cmd+Shift+5 → "Record Entire Screen", microphone on (Options). 1080p is enough.
 - **Before recording:** open the six tabs below in order and close anything with keys, `.env`, emails or tokens.
+- **Published:** https://youtu.be/EBvIWylq_n8 (the final cut, submitted with the BUIDL).
 - **Upload:** YouTube, Unlisted, title `AgentSettle (HSP, x402) | HashKey Chain Horizon Hackathon, Agent Payments & A2A Settlement`. Paste the URL in the DoraHacks BUIDL → Edit → + Video.
 
 | # | Time | Tab on screen | Voice-over |
