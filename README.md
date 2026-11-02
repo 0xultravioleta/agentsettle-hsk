@@ -96,7 +96,7 @@ On HashKey testnet or mainnet, the same command prints Blockscout links for ever
 | **HSP REST rail (HashKey Merchant API), off the critical path** | [`src/rails/hsp-merchant.ts`](src/rails/hsp-merchant.ts) · [`src/rails/hsp.ts`](src/rails/hsp.ts) · [`src/agents/hsp-flow.ts`](src/agents/hsp-flow.ts) | One-time cart mandates on the QA gateway (`hashkey-testnet`, USDC): HMAC-SHA256 request signing, the ES256K `merchant_authorization` JWT over the canonical cart hash, payment queries and signed webhooks (`/hsp/webhook`). The merchant key and the app credentials live in AWS SSM, never in the repo ([docs/hsp/REGISTRATION.md](docs/hsp/REGISTRATION.md)). The receipt carries the `payment_request_id`. |
 | **Spend guardrails (same shape as HSP SpendGuard)** | [`src/spend-guard.ts`](src/spend-guard.ts) | A per-tx cap of 0.50 USDC and a daily cap of 5 USDC. A spend is booked at signing time. |
 
-Transactions on HashKey Chain: [TX_LINKS on explorer.hsk.xyz]
+Transactions on HashKey Chain: the contract deploys, on [mainnet](https://explorer.hsk.xyz/tx/0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) and [testnet](https://testnet-explorer.hskchain.net/tx/0xd2f083d1f44ecf293239653b06ab1bc0b93d9d17fecb12ff7cfff4a938c1bf60). The paid runs are waiting for USDC funding (see Status below).
 
 ## Status (kept honest)
 

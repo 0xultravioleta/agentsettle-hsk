@@ -2,16 +2,16 @@
 
 **Do not post. Luis posts from his own account after submission (or before, where the rules require it).** Check the sponsor's @ handle before posting, and keep the HSP sentence only if SUBMISSION.md keeps `[IF HSP LIVE]`.
 
-## X post (234/280 counting each link as 23)
+## X post (266/280 counting each link as 23)
 ```text
-We added @HashKeyHSK Chain to our open-source x402 facilitator: agents now hire and pay each other in USDC on HashKey Chain mainnet, with an on-chain receipt for every task.
+We added @HashKeyHSK Chain to our open-source x402 facilitator and built agents that hire and pay each other in USDC, with an on-chain receipt per task. The receipts contract is live on HashKey Chain mainnet.
 
 BUIDL for HashKey Chain Horizon: [BUIDL_URL]
 ```
 
 ## X thread follow-ups (optional)
 ```text
-2/ How it works: Agent B answers HTTP 402 with a USDC price. Agent A signs an EIP-3009 authorization (no gas), our facilitator settles it on chain 177, and B writes a receipt to AgentSettleReceipts. Caps: 0.50 USDC per tx, 5 per day.
+2/ How it works: Agent B answers HTTP 402 with a USDC price. Agent A signs an EIP-3009 authorization (no gas), our facilitator settles it on HashKey Chain, and B writes a receipt to AgentSettleReceipts. Caps: 0.50 USDC per tx, 5 per day.
 
 3/ [IF HSP LIVE] The same task also runs over HSP Agentic Payment (MCP): the agent checks every field the server asks it to sign, a person approves, and B delivers only once that transfer is on-chain.
 
