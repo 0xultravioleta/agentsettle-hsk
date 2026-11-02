@@ -60,7 +60,27 @@ echo "operator $FROM balance $(cast from-wei "$BAL") $GAS on chain $CHAIN"
 [[ "$BAL" != "0" ]] || { echo "operator has no gas" >&2; exit 1; }
 
 forge build --quiet
-OUT=$(DEPLOYER_PRIVATE_KEY="$KEY" forge script contracts/script/Deploy.s.sol --rpc-url "$RPC" --broadcast --slow 2>&1) || { echo "$OUT" | grep -v -i "private" >&2; exit 1; }
+if [[ "$NET" == ethereum-sepolia ]]; then
+  # Sepolia runs a fork newer than forge's EVM: there the creation costs ~2.1M gas, forge simulates ~318k (2026-11-02),
+  # and a deploy with forge's gas limit runs out of gas. viem sends it with the gas the node estimates; the key travels
+  # in the environment only.
+  OUT=$(DEPLOYER_PRIVATE_KEY="$KEY" DEPLOY_RPC="$RPC" DEPLOY_CHAIN="$CHAIN" DEPLOY_OPERATOR="$FROM" node --input-type=module -e "
+import { readFileSync } from 'node:fs';
+import { createPublicClient, createWalletClient, defineChain, http } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+const art = JSON.parse(readFileSync('out/AgentSettleReceipts.sol/AgentSettleReceipts.json', 'utf8'));
+const chain = defineChain({ id: Number(process.env.DEPLOY_CHAIN), name: 'deploy', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [process.env.DEPLOY_RPC] } } });
+const wallet = createWalletClient({ account: privateKeyToAccount(process.env.DEPLOYER_PRIVATE_KEY), chain, transport: http() });
+const hash = await wallet.deployContract({ abi: art.abi, bytecode: art.bytecode.object, args: [process.env.DEPLOY_OPERATOR] });
+console.log('deploy tx ' + hash);
+const r = await createPublicClient({ chain, transport: http() }).waitForTransactionReceipt({ hash });
+if (r.status !== 'success') throw new Error('deploy tx ' + hash + ' failed on-chain (gas used ' + r.gasUsed + ')');
+console.log('AgentSettleReceipts ' + r.contractAddress);
+" 2>&1) || { echo "$OUT" | grep -v -i "private" >&2; exit 1; }
+  echo "$OUT" | grep '^deploy tx '
+else
+  OUT=$(DEPLOYER_PRIVATE_KEY="$KEY" forge script contracts/script/Deploy.s.sol --rpc-url "$RPC" --broadcast --slow 2>&1) || { echo "$OUT" | grep -v -i "private" >&2; exit 1; }
+fi
 ADDR=$(echo "$OUT" | grep -o 'AgentSettleReceipts 0x[0-9a-fA-F]\{40\}' | head -1 | awk '{print $2}')
 [[ -n "$ADDR" ]] || { echo "could not read the deployed address" >&2; exit 1; }
 # a load-balanced RPC can answer from a node that has not seen the deploy block yet: retry before calling it a mismatch
