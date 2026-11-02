@@ -111,10 +111,10 @@ export const RECEIPTS_ABI = [
 export function viemChain(net: NetworkConfig): Chain {
   return defineChain({
     id: net.chainId,
-    name: net.name === 'hashkey' ? 'HashKey Chain' : net.name === 'hashkey-testnet' ? 'HashKey Chain Testnet' : net.name === 'base-sepolia' ? 'Base Sepolia' : 'Local (anvil)',
-    nativeCurrency: { name: 'HSK', symbol: 'HSK', decimals: 18 },
+    name: net.name === 'hashkey' ? 'HashKey Chain' : net.name === 'hashkey-testnet' ? 'HashKey Chain Testnet' : net.name === 'ethereum-sepolia' ? 'Ethereum Sepolia' : net.name === 'base-sepolia' ? 'Base Sepolia' : 'Local (anvil)',
+    nativeCurrency: net.name === 'ethereum-sepolia' || net.name === 'base-sepolia' ? { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 } : { name: 'HSK', symbol: 'HSK', decimals: 18 },
     rpcUrls: { default: { http: [net.rpcUrl] } },
-    ...(net.explorer ? { blockExplorers: { default: { name: 'Blockscout', url: net.explorer } } } : {}),
+    ...(net.explorer ? { blockExplorers: { default: { name: net.name === 'ethereum-sepolia' ? 'Etherscan' : 'Blockscout', url: net.explorer } } } : {}),
   });
 }
 

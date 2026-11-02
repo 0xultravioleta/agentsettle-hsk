@@ -6,7 +6,7 @@ import {AgentSettleReceipts} from "../AgentSettleReceipts.sol";
 
 /// @notice Deploys AgentSettleReceipts with the broadcaster as operator.
 /// Use scripts/deploy.sh: it passes the key through DEPLOYER_PRIVATE_KEY (never on the command line),
-/// verifies on Blockscout and records the address in .env. The mainnet guard lives here too, so a bare
+/// verifies the source and records the address in .env. The mainnet guard lives here too, so a bare
 /// `forge script ... --broadcast` against chain 177 also refuses without MAINNET_OWNER_OK=yes.
 contract Deploy is Script {
     uint256 internal constant HASHKEY_MAINNET = 177;

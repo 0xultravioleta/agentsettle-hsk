@@ -67,10 +67,20 @@ describe('deploy.sh on mainnet: the OK comes from the caller, and the deployed c
     for (const flag of ['--force', '--re', '--redeploy=1', '--REDEPLOY']) {
       const u = deploy(noKeys(`RECEIPTS_ADDRESS_MAINNET=${DEPLOYED}\n`), ['hashkey', flag], 'yes');
       expect(u.status, flag).toBe(1);
-      expect(u.stderr).toMatch(/^usage: scripts\/deploy\.sh hashkey-testnet\|hashkey \[--redeploy\]$/m);
+      expect(u.stderr).toMatch(/^usage: scripts\/deploy\.sh hashkey-testnet\|ethereum-sepolia\|hashkey \[--redeploy\]$/m);
       expect(u.called).toBe('');
     }
     expect(t.called).toBe('');
+  });
+
+  it('ethereum-sepolia is a testnet: no mainnet OK needed, its own address var, and it stops at the empty testnet key', () => {
+    for (const caller of [undefined, '']) {
+      const r = deploy(noKeys('RECEIPTS_ADDRESS_ETH_SEPOLIA=0x00000000000000000000000000000000000000aa\n'), ['ethereum-sepolia'], caller);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/^TESTNET_OPERATOR_PRIVATE_KEY is empty in \.env$/m);
+      expect(r.stderr).not.toMatch(/refusing/);
+      expect(r.called).toBe('');
+    }
   });
 
   it('a line in .env cannot set the script\'s own CALLER_OWNER_OK, REDEPLOY or NET: it stops there', () => {

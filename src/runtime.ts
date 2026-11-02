@@ -41,7 +41,10 @@ async function serveLocalFacilitator(net: NetworkConfig, signer: LocalAccount, p
   });
 }
 
-/** Does the facilitator at `url` list this network? (production lists hashkey and hashkey-testnet since 2.52.0) */
+/**
+ * Does the facilitator at `url` list the `exact` scheme on this network? (production lists hashkey and hashkey-testnet
+ * since 2.52.0; on Ethereum Sepolia it lists only escrow and commerce, which cannot settle our EIP-3009 payment)
+ */
 export async function facilitatorSupports(url: string, net: NetworkConfig): Promise<boolean> {
   try {
     const r = await fetch(`${url.replace(/\/+$/, '')}/supported`, { signal: AbortSignal.timeout(10_000) });
@@ -49,6 +52,7 @@ export async function facilitatorSupports(url: string, net: NetworkConfig): Prom
     const body: any = await r.json();
     const kinds: any[] = Array.isArray(body) ? body : (body.kinds ?? []);
     return kinds.some((k) => {
+      if (String(k.scheme).toLowerCase() !== 'exact') return false;
       const names = [k.network, ...(k.networkAliases ?? [])].map((x: unknown) => String(x).toLowerCase());
       return names.includes(net.caip2) || names.includes(net.name);
     });
@@ -132,7 +136,7 @@ export async function createRuntime(name: NetworkName, opts: { facilitator?: Fac
   }
 
   const supports = mode !== 'local' && (await facilitatorSupports(remote, net));
-  const readiness = supports ? await facilitatorReadiness(remote, net) : { ready: false, reason: `${remote} does not list ${net.caip2}` };
+  const readiness = supports ? await facilitatorReadiness(remote, net) : { ready: false, reason: `${remote} does not list the exact scheme on ${net.caip2}` };
   if (pickFacilitator(net, mode, { url: remote, supports, readiness }) === 'local') {
     const signer = accountFromEnv('LOCAL_FACILITATOR_PRIVATE_KEY') ?? operator;
     const fac = await serveLocalFacilitator(net, signer, operator.address);

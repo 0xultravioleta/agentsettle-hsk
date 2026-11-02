@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getNetwork } from '../src/config.js';
-import { createRuntime, facilitatorReadiness, pickFacilitator, type Readiness } from '../src/runtime.js';
+import { createRuntime, facilitatorReadiness, facilitatorSupports, pickFacilitator, type Readiness } from '../src/runtime.js';
 import { listen } from './helpers.js';
 
 /** The owner's condition for the mainnet runs: start only while /health/ready does not mark hashkey down. */
@@ -70,6 +70,34 @@ describe('pickFacilitator', () => {
     expect(pickFacilitator(testnet, 'auto', { url, supports: false, readiness: up })).toBe('local');
     expect(pickFacilitator(testnet, 'remote', { url, supports: true, readiness: down })).toBe('remote');
     expect(pickFacilitator(testnet, 'local', { url, supports: true, readiness: up })).toBe('local');
+  });
+});
+
+describe('facilitatorSupports counts only the exact scheme', () => {
+  let kinds: unknown[] = [];
+  let srv: { url: string; close: () => Promise<void> };
+  beforeAll(async () => {
+    const app = new Hono();
+    app.get('/supported', (c) => c.json({ kinds }));
+    srv = await listen(app);
+  });
+  afterAll(() => srv.close());
+
+  it('escrow and commerce on Ethereum Sepolia (what production lists) do not count, so auto settles locally there', async () => {
+    const sepolia = getNetwork('ethereum-sepolia');
+    kinds = [
+      { x402Version: 2, scheme: 'escrow', network: 'eip155:11155111', networkAliases: ['ethereum-sepolia', 'eip155:11155111'] },
+      { x402Version: 1, scheme: 'commerce', network: 'ethereum-sepolia', networkAliases: ['ethereum-sepolia', 'eip155:11155111'] },
+      { x402Version: 2, scheme: 'exact', network: 'eip155:133', networkAliases: ['hashkey-testnet', 'eip155:133'] },
+    ];
+    expect(await facilitatorSupports(srv.url, sepolia)).toBe(false);
+    expect(await facilitatorSupports(srv.url, getNetwork('hashkey-testnet'))).toBe(true);
+    const up = { ready: true, reason: 'ok' };
+    expect(pickFacilitator(sepolia, 'auto', { url: srv.url, supports: await facilitatorSupports(srv.url, sepolia), readiness: up })).toBe('local');
+    kinds = [{ x402Version: 2, scheme: 'exact', network: 'eip155:11155111' }];
+    expect(await facilitatorSupports(srv.url, sepolia)).toBe(true);
+    kinds = [{ x402Version: 2, network: 'eip155:11155111' }];
+    expect(await facilitatorSupports(srv.url, sepolia)).toBe(false);
   });
 });
 

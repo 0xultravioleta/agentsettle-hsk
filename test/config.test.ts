@@ -2,9 +2,11 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { domainSeparator } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { accountFromEnv } from '../src/accounts.js';
-import { assertMainnetAllowed, explorerTx, getNetwork, loadDotEnv, parseNetworkName } from '../src/config.js';
+import { viemChain } from '../src/chain.js';
+import { assertMainnetAllowed, explorerTx, getNetwork, keyEnvNames, loadDotEnv, parseNetworkName } from '../src/config.js';
 
 const env0 = { ...process.env };
 afterEach(() => {
@@ -70,6 +72,30 @@ describe('config', () => {
     expect(process.env.mainnet_owner_ok).toBeUndefined();
     expect(process.env.Mainnet_Owner_Ok).toBeUndefined();
     expect(() => assertMainnetAllowed(getNetwork('hashkey'))).toThrow(/refusing/);
+  });
+
+  it('ethereum-sepolia: chain 11155111, Circle USDC with the EIP-712 domain read on-chain, testnet keys, no mainnet gate', () => {
+    expect(parseNetworkName(' Ethereum-Sepolia ')).toBe('ethereum-sepolia');
+    delete process.env.ETH_SEPOLIA_RPC_URL;
+    delete process.env.RECEIPTS_ADDRESS_ETH_SEPOLIA;
+    const net = getNetwork('ethereum-sepolia');
+    expect(net).toMatchObject({ chainId: 11155111, caip2: 'eip155:11155111', mainnet: false, rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com' });
+    expect(net.usdc).toEqual({ address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', decimals: 6, eip712: { name: 'USDC', version: '2' } });
+    // DOMAIN_SEPARATOR() of that token on chain 11155111, read with cast on 2026-11-02
+    expect(domainSeparator({ domain: { ...net.usdc.eip712, chainId: net.chainId, verifyingContract: net.usdc.address } })).toBe(
+      '0xb90e5057db141a932946e64d09ccb7ffc9b00bd79fec26f698d29af0c83320a6',
+    );
+    expect(explorerTx(net, '0xabc')).toBe('https://sepolia.etherscan.io/tx/0xabc');
+    expect(net.receiptsAddress).toBeUndefined();
+    expect(keyEnvNames('ethereum-sepolia')).toEqual({ operator: 'TESTNET_OPERATOR_PRIVATE_KEY', buyer: 'TESTNET_BUYER_PRIVATE_KEY' });
+    expect(viemChain(net).nativeCurrency.symbol).toBe('ETH');
+    delete process.env.MAINNET_OWNER_OK;
+    expect(() => assertMainnetAllowed(net)).not.toThrow();
+    process.env.ETH_SEPOLIA_RPC_URL = 'http://127.0.0.1:1';
+    process.env.RECEIPTS_ADDRESS_ETH_SEPOLIA = '0x00000000000000000000000000000000000000aa';
+    expect(getNetwork('ethereum-sepolia')).toMatchObject({ rpcUrl: 'http://127.0.0.1:1', receiptsAddress: '0x00000000000000000000000000000000000000AA' });
+    process.env.RECEIPTS_ADDRESS_ETH_SEPOLIA = '0x123';
+    expect(() => getNetwork('ethereum-sepolia')).toThrow(/RECEIPTS_ADDRESS_ETH_SEPOLIA/);
   });
 
   it('rejects a malformed receipts address from env', () => {

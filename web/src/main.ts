@@ -73,7 +73,7 @@ async function animate(steps: Step[], title: string, append = false) {
 
 async function loadConfig() {
   cfg = await (await fetch('/api/config')).json();
-  const netLabel = cfg.network === 'hashkey' ? 'HashKey Chain mainnet' : cfg.network === 'hashkey-testnet' ? 'HashKey Chain testnet' : 'local anvil';
+  const netLabel = cfg.network === 'hashkey' ? 'HashKey Chain mainnet' : cfg.network === 'hashkey-testnet' ? 'HashKey Chain testnet' : cfg.network === 'ethereum-sepolia' ? 'Ethereum Sepolia' : 'local anvil';
   $('net-badge').textContent = `${netLabel} · ${cfg.caip2}`;
   $('net-badge').className = `badge ${cfg.mainnet ? 'main' : cfg.network === 'local' ? 'local' : 'test'}`;
   const c = $<HTMLAnchorElement>('contract-link');

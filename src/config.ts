@@ -3,10 +3,11 @@ import { parseEnv } from 'node:util';
 import { getAddress, isAddress, type Address } from 'viem';
 
 /**
- * Networks the demo runs on. `local` is anvil with the EIP-3009 mock (offline, CI and rehearsal). `base-sepolia` is
- * only the fallback chain for HSP Agentic Payment (HSP_MCP_NETWORK), never a `--network` of the demo.
+ * Networks the demo runs on. `local` is anvil with the EIP-3009 mock (offline, CI and rehearsal). `ethereum-sepolia`
+ * is where HashKey asks hackathon teams to test USDC payments (Circle's official USDC). `base-sepolia` is only the
+ * fallback chain for HSP Agentic Payment (HSP_MCP_NETWORK), never a `--network` of the demo.
  */
-export type NetworkName = 'hashkey' | 'hashkey-testnet' | 'local' | 'base-sepolia';
+export type NetworkName = 'hashkey' | 'hashkey-testnet' | 'ethereum-sepolia' | 'local' | 'base-sepolia';
 
 export interface UsdcToken {
   address: Address;
@@ -96,6 +97,24 @@ export function getNetwork(name: NetworkName, overrides: Partial<NetworkConfig> 
         mainnet: false,
         ...overrides,
       };
+    case 'ethereum-sepolia':
+      return {
+        name,
+        chainId: 11155111,
+        caip2: 'eip155:11155111',
+        rpcUrl: env('ETH_SEPOLIA_RPC_URL') ?? 'https://ethereum-sepolia-rpc.publicnode.com',
+        explorer: 'https://sepolia.etherscan.io',
+        usdc: {
+          // Circle's official testnet USDC. name() "USDC", version() "2"; DOMAIN_SEPARATOR 0xb90e5057…20a6 recomputed
+          // and matched on-chain on 2026-11-02. The production facilitator has no `exact` here: our own one settles.
+          address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+          decimals: 6,
+          eip712: { name: 'USDC', version: '2' },
+        },
+        receiptsAddress: optionalAddress('RECEIPTS_ADDRESS_ETH_SEPOLIA'),
+        mainnet: false,
+        ...overrides,
+      };
     case 'base-sepolia':
       return {
         name,
@@ -133,8 +152,8 @@ export function getNetwork(name: NetworkName, overrides: Partial<NetworkConfig> 
 
 export function parseNetworkName(value: string | undefined): NetworkName {
   const v = (value ?? 'local').trim().toLowerCase();
-  if (v === 'hashkey' || v === 'hashkey-testnet' || v === 'local') return v;
-  throw new Error(`unknown network "${value}" (use local, hashkey-testnet or hashkey)`);
+  if (v === 'hashkey' || v === 'hashkey-testnet' || v === 'ethereum-sepolia' || v === 'local') return v;
+  throw new Error(`unknown network "${value}" (use local, hashkey-testnet, ethereum-sepolia or hashkey)`);
 }
 
 export function explorerTx(net: NetworkConfig, hash: string): string | undefined {
@@ -148,8 +167,8 @@ export function explorerAddress(net: NetworkConfig, address: string): string | u
 /** Env var names of the two agent keys per network (values live only in .env). */
 export function keyEnvNames(name: NetworkName): { operator: string; buyer: string } {
   if (name === 'hashkey') return { operator: 'OPERATOR_PRIVATE_KEY', buyer: 'BUYER_PRIVATE_KEY' };
-  // the testnet wallets (W5, W6) are the same keys on Base Sepolia, the HSP fallback chain
-  if (name === 'hashkey-testnet' || name === 'base-sepolia') return { operator: 'TESTNET_OPERATOR_PRIVATE_KEY', buyer: 'TESTNET_BUYER_PRIVATE_KEY' };
+  // the testnet wallets (W5, W6) are the same keys on Ethereum Sepolia and on Base Sepolia, the HSP fallback chain
+  if (name === 'hashkey-testnet' || name === 'ethereum-sepolia' || name === 'base-sepolia') return { operator: 'TESTNET_OPERATOR_PRIVATE_KEY', buyer: 'TESTNET_BUYER_PRIVATE_KEY' };
   return { operator: 'LOCAL_OPERATOR_PRIVATE_KEY', buyer: 'LOCAL_BUYER_PRIVATE_KEY' };
 }
 
