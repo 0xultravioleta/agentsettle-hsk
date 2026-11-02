@@ -96,7 +96,7 @@ On HashKey testnet or mainnet, the same command prints Blockscout links for ever
 | **HSP REST rail (HashKey Merchant API), off the critical path** | [`src/rails/hsp-merchant.ts`](src/rails/hsp-merchant.ts) · [`src/rails/hsp.ts`](src/rails/hsp.ts) · [`src/agents/hsp-flow.ts`](src/agents/hsp-flow.ts) | One-time cart mandates on the QA gateway (`hashkey-testnet`, USDC): HMAC-SHA256 request signing, the ES256K `merchant_authorization` JWT over the canonical cart hash, payment queries and signed webhooks (`/hsp/webhook`). The merchant key and the app credentials live in AWS SSM, never in the repo ([docs/hsp/REGISTRATION.md](docs/hsp/REGISTRATION.md)). The receipt carries the `payment_request_id`. |
 | **Spend guardrails (same shape as HSP SpendGuard)** | [`src/spend-guard.ts`](src/spend-guard.ts) | A per-tx cap of 0.50 USDC and a daily cap of 5 USDC. A spend is booked at signing time. |
 
-Transactions on HashKey Chain: the contract deploys, on [mainnet](https://explorer.hsk.xyz/tx/0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) and [testnet](https://testnet-explorer.hskchain.net/tx/0xd2f083d1f44ecf293239653b06ab1bc0b93d9d17fecb12ff7cfff4a938c1bf60). The paid runs are waiting for USDC funding (see Status below).
+Transactions on HashKey Chain: the contract deploys, on [mainnet](https://explorer.hsk.xyz/tx/0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) and [testnet](https://testnet-explorer.hskchain.net/tx/0xd2f083d1f44ecf293239653b06ab1bc0b93d9d17fecb12ff7cfff4a938c1bf60). No paid run has happened on HashKey Chain yet (see Status below).
 
 ## Status (kept honest)
 
@@ -110,7 +110,7 @@ Transactions on HashKey Chain: the contract deploys, on [mainnet](https://explor
 | HSP Agentic Payment (MCP, QA) | ✅ the QA MCP server answers our IP (initialize, the eight tools, `get_chain_config`; read-only, 2026-11-01) · ✅ client and flow tested against a fake server that replays the recorded tool schemas, plus an anvil e2e (`test/hsp-mcp*.test.ts`) · ⏳ one real payment with `pnpm hsp:pay` once W6 holds testnet USDC (`0x8FE3…`) |
 | HSP REST rail (HashKey Merchant API) | ✅ built and tested (`test/hsp-merchant*.test.ts`) · off the critical path: its QA API still answers 403, and HSP Agentic Payment needs no credentials |
 | Contract on HashKey Chain mainnet | ✅ [`0xb8956dFe…`](https://explorer.hsk.xyz/address/0xb8956dFe5819b9828b6D55315bFB871c443f08a1), deployed by W3 on 2026-11-01 in [tx 0x9f86a835…](https://explorer.hsk.xyz/tx/0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) (block 29602850, 318,089 gas, 0.159 HSK) and verified on Blockscout |
-| Mainnet settlements | ⏳ approved (5 to 10 paid runs W4 → W3); waiting for USDC on W4 ([docs/FUNDING.md](docs/FUNDING.md)) |
+| Paid runs on HashKey Chain | No paid run has happened on HashKey Chain yet. The full flow runs end to end on a local chain (the x402 row above). |
 | EAS attestation per receipt, ERC-8004 feedback | not built (P1/P2) |
 
 ## Safety

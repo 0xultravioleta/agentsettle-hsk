@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 0:00–0:10 | Title: AgentSettle, agents paying agents on HashKey Chain | Hook | Agents can now hire other agents, and pay them, on HashKey Chain. |
 | 0:10–0:25 | Diagram: Agent A → 402 → pay → Agent B → receipt | Problem | To do that, agents need a payment request over HTTP, settlement they can verify, and a receipt anyone can check. We built all three on HashKey. |
-| 0:25–0:50 | Terminal + UI of `scripts/demo.sh --ui` on a local chain: A asks B to translate; B returns 402 with a USDC price | Demo 1: 402 | Agent A asks Agent B for a task. B replies 402 Payment Required: 10 cents of USDC. This run is on a local chain, with the same contract and code: our paid runs on HashKey Chain are waiting for USDC funding. |
+| 0:25–0:50 | Terminal + UI of `scripts/demo.sh --ui` on a local chain: A asks B to translate; B returns 402 with a USDC price | Demo 1: 402 | Agent A asks Agent B for a task. B replies 402 Payment Required: 10 cents of USDC. This run is on a local chain, with the same receipts contract and agent code; a local facilitator and a mock USDC stand in for the production ones. No paid run has happened on HashKey Chain yet. |
 | 0:50–1:10 | A signs (no gas); the local facilitator settles; the settle tx in the console | Demo 2: settle (sponsor) | A signs an EIP-3009 authorization. It never touches gas. Here a local x402 facilitator settles it; on HashKey Chain that is our open-source facilitator, which now supports chain 177. |
 | 1:10–1:25 | B delivers; recordReceipt tx in the console; then the mainnet contract page https://explorer.hsk.xyz/address/0xb8956dFe5819b9828b6D55315bFB871c443f08a1 (deployed in https://explorer.hsk.xyz/tx/0x9f86a83512b32dc223336420bef95bc05d93c8c1613b1d1c0e6454d0a2caba8c) | Demo 3: receipt | B delivers, and writes a receipt to our AgentSettleReceipts contract. It links the payment, the payer and a hash of the work. The same contract is deployed and verified on HashKey Chain mainnet. |
 | 1:25–1:45 | [IF HSP LIVE] `pnpm hsp:pay`: merchant_name, pay_to and payer confirmed; "Sign?" and "Submit?" approved; payment-safe; the tx on testnet-explorer.hskchain.net; receipt with the payment_request_id | Demo 4: HSP (sponsor) | The same task over HSP Agentic Payment, HashKey's MCP server. Agent A pays the cart mandate itself. The server prepares what to sign, and the agent checks every field first: token, chain, recipient, amount. I approve, it signs with its own key, and B delivers only once that exact transfer is on-chain. |
@@ -18,7 +18,7 @@
 | 1:55–2:00 | End card: repo, contract address, facilitator PR | CTA | AgentSettle, by Ultravioleta DAO. Links below. |
 
 ## Pre-record checklist
-- [ ] The paid run on screen is the local one (`scripts/demo.sh --ui`) and the voice-over says so. The only mainnet hashes on screen are the contract and its deploy tx. (If the mainnet runs land first, record those instead, with their links in README.md and SUBMISSION.md.)
+- [ ] The paid run on screen is the local one (`scripts/demo.sh --ui`) and the voice-over says so. The only mainnet hashes on screen are the contract and its deploy tx.
 - [ ] Every number on screen is real (tx hash, contract address).
 - [ ] No keys, seeds, emails or tokens visible on screen (`.env` and the SSM console stay closed).
 - [ ] Cut to about 2:00; captions burned in or uploaded as SRT.
